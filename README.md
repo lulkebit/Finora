@@ -1,8 +1,15 @@
-# Finora - Intelligente Finanzverwaltung
-
-![Finora Logo](docs/images/logo.svg)
+# <img src="docs/images/logo.svg" alt="Finora Logo" width="32" height="32" style="vertical-align: middle; margin-right: 10px;"> Finora - Intelligente Finanzverwaltung
 
 Finora ist eine moderne Webanwendung zur intelligenten Verwaltung persönlicher Finanzen. Mit einer eleganten Benutzeroberfläche und fortschrittlichen Funktionen hilft Finora dabei, den Überblick über Ihre Finanzen zu behalten.
+
+> [!IMPORTANT] > **⚠️ Work in Progress**
+>
+> Dieses Projekt befindet sich derzeit in aktiver Entwicklung. Bitte beachten Sie:
+>
+> -   Das Design und die Benutzeroberfläche können sich grundlegend ändern
+> -   Die Projektstruktur und Architektur werden kontinuierlich optimiert
+> -   Features können hinzugefügt, entfernt oder stark modifiziert werden
+> -   Die Dokumentation wird laufend aktualisiert
 
 ## 🌟 Features
 
