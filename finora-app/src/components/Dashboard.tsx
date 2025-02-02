@@ -13,6 +13,7 @@ import { CategoryGrid } from './categories/CategoryGrid';
 import { ContractList } from './contracts/ContractList';
 import { TabNavigation } from './common/TabNavigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { authApi } from '../services/api';
 
 // Beispieldaten (später durch echte Daten ersetzen)
 const mockTransactions = [
@@ -85,6 +86,10 @@ const mockContracts: Contract[] = [
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState('overview');
 
+    const handleLogout = () => {
+        authApi.logout();
+    };
+
     const tabs = [
         {
             id: 'overview',
@@ -138,14 +143,21 @@ export default function Dashboard() {
                             transition={{ delay: 0.2, duration: 0.3 }}
                             className='flex-shrink-0'
                         >
-                            <h1 className='text-xl font-semibold text-white'>
-                                Finora
-                            </h1>
+                            <div className='flex items-center space-x-3'>
+                                <img
+                                    src='/logo.svg'
+                                    alt='Finora'
+                                    className='h-8 w-8'
+                                />
+                                <h1 className='text-xl font-semibold text-white'>
+                                    Finora
+                                </h1>
+                            </div>
                         </motion.div>
                         <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => (window.location.href = '/login')}
+                            onClick={handleLogout}
                             className='flex items-center text-gray-300 hover:text-white transition-colors'
                         >
                             <FiLogOut className='mr-2' />
