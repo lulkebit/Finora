@@ -27,3 +27,5 @@ dist-ssr
 .million
 
 todo.md
+
+.env

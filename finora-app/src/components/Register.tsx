@@ -3,189 +3,173 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard } from './common/GlassCard';
 import { useNavigate } from 'react-router-dom';
 import {
-    FiUser,
     FiMail,
     FiLock,
-    FiCreditCard,
+    FiUser,
+    FiCalendar,
+    FiBriefcase,
     FiDollarSign,
+    FiTarget,
     FiArrowRight,
     FiArrowLeft,
-    FiTarget,
     FiShield,
-    FiTrendingUp,
 } from 'react-icons/fi';
+import { authApi } from '../services/api';
+import { toast } from 'sonner';
+import { AxiosError } from 'axios';
 
-type RegisterStep =
-    | 'welcome'
-    | 'personal'
-    | 'security'
-    | 'account'
-    | 'employment'
-    | 'financial'
-    | 'goals'
-    | 'verification';
-
-interface StepInfo {
-    title: string;
-    icon: React.ReactNode;
-    description: string;
+interface ApiError {
+    error: string;
 }
 
-const STEPS: Record<RegisterStep, StepInfo> = {
-    welcome: {
-        title: 'Willkommen',
-        icon: <FiUser className='w-6 h-6' />,
-        description: 'Beginnen Sie Ihre finanzielle Reise mit Finora',
-    },
-    personal: {
-        title: 'Persönliche Daten',
-        icon: <FiUser className='w-6 h-6' />,
-        description: 'Erzählen Sie uns etwas über sich',
-    },
-    security: {
-        title: 'Sicherheit',
-        icon: <FiLock className='w-6 h-6' />,
-        description: 'Schützen Sie Ihren Account',
-    },
-    account: {
-        title: 'Bankverbindung',
-        icon: <FiCreditCard className='w-6 h-6' />,
-        description: 'Verbinden Sie Ihr Bankkonto',
-    },
-    employment: {
-        title: 'Beschäftigung',
-        icon: <FiDollarSign className='w-6 h-6' />,
-        description: 'Ihre berufliche Situation',
-    },
-    financial: {
-        title: 'Finanzen',
-        icon: <FiTrendingUp className='w-6 h-6' />,
-        description: 'Ihre finanzielle Situation',
-    },
-    goals: {
-        title: 'Ziele',
-        icon: <FiTarget className='w-6 h-6' />,
-        description: 'Ihre finanziellen Ziele',
-    },
-    verification: {
-        title: 'Bestätigung',
-        icon: <FiShield className='w-6 h-6' />,
-        description: 'Letzte Schritte zur Aktivierung',
-    },
-};
-
-interface FormData {
-    // Persönliche Daten
-    firstName: string;
-    lastName: string;
+interface RegisterFormData {
     email: string;
     password: string;
     confirmPassword: string;
+    firstName: string;
+    lastName: string;
     dateOfBirth: string;
-
-    // Kontodaten
-    iban: string;
-    bankName: string;
-    accountHolder: string;
-
-    // Finanzielle Informationen
-    monthlyIncome: string;
     employmentStatus: string;
+    monthlyIncome: string;
     savingsGoal: string;
     riskTolerance: string;
-
-    // Verifikation
-    acceptTerms: boolean;
-    acceptPrivacy: boolean;
-    acceptDataProcessing: boolean;
 }
+
+type RegisterStep = 'account' | 'personal' | 'financial' | 'goals';
+
+interface StepConfig {
+    title: string;
+    description: string;
+    icon: JSX.Element;
+}
+
+const STEPS: Record<RegisterStep, StepConfig> = {
+    account: {
+        title: 'Account erstellen',
+        description: 'Erstellen Sie Ihre Zugangsdaten',
+        icon: <FiShield className='w-6 h-6 text-blue-400' />,
+    },
+    personal: {
+        title: 'Persönliche Daten',
+        description: 'Erzählen Sie uns etwas über sich',
+        icon: <FiUser className='w-6 h-6 text-green-400' />,
+    },
+    financial: {
+        title: 'Finanzielle Situation',
+        description: 'Ihre aktuelle finanzielle Lage',
+        icon: <FiDollarSign className='w-6 h-6 text-purple-400' />,
+    },
+    goals: {
+        title: 'Finanzziele',
+        description: 'Ihre finanziellen Ziele',
+        icon: <FiTarget className='w-6 h-6 text-orange-400' />,
+    },
+};
+
+const EMPLOYMENT_STATUS_OPTIONS = [
+    'Angestellt',
+    'Selbstständig',
+    'Student',
+    'Rentner',
+    'Arbeitssuchend',
+    'Sonstiges',
+];
+
+const RISK_TOLERANCE_OPTIONS = [
+    'Konservativ',
+    'Ausgewogen',
+    'Wachstumsorientiert',
+    'Spekulativ',
+];
 
 export default function Register() {
     const navigate = useNavigate();
-    const [currentStep, setCurrentStep] = useState<RegisterStep>('welcome');
-    const [formData, setFormData] = useState<FormData>({
-        firstName: '',
-        lastName: '',
+    const [isLoading, setIsLoading] = useState(false);
+    const [currentStep, setCurrentStep] = useState<RegisterStep>('account');
+    const [formData, setFormData] = useState<RegisterFormData>({
         email: '',
         password: '',
         confirmPassword: '',
+        firstName: '',
+        lastName: '',
         dateOfBirth: '',
-        iban: '',
-        bankName: '',
-        accountHolder: '',
-        monthlyIncome: '',
         employmentStatus: '',
+        monthlyIncome: '',
         savingsGoal: '',
         riskTolerance: '',
-        acceptTerms: false,
-        acceptPrivacy: false,
-        acceptDataProcessing: false,
     });
 
-    const containerVariants = {
-        hidden: { opacity: 0 },
-        visible: {
-            opacity: 1,
-            transition: {
-                duration: 0.3,
-                staggerChildren: 0.1,
-            },
-        },
-    };
-
-    const itemVariants = {
-        hidden: { y: 20, opacity: 0 },
-        visible: {
-            y: 0,
-            opacity: 1,
-            transition: {
-                type: 'spring',
-                stiffness: 100,
-                damping: 12,
-            },
-        },
-    };
-
-    const slideVariants = {
-        enter: (direction: number) => ({
-            x: direction > 0 ? 1000 : -1000,
-            opacity: 0,
-        }),
-        center: {
-            zIndex: 1,
-            x: 0,
-            opacity: 1,
-        },
-        exit: (direction: number) => ({
-            zIndex: 0,
-            x: direction < 0 ? 1000 : -1000,
-            opacity: 0,
-        }),
-    };
-
-    const handleInputChange = (
+    const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
     ) => {
-        const { name, value, type } = e.target;
+        const { name, value } = e.target;
         setFormData((prev) => ({
             ...prev,
-            [name]:
-                type === 'checkbox'
-                    ? (e.target as HTMLInputElement).checked
-                    : value,
+            [name]: value,
         }));
     };
 
+    const validateStep = () => {
+        switch (currentStep) {
+            case 'account':
+                if (
+                    !formData.email ||
+                    !formData.password ||
+                    !formData.confirmPassword
+                ) {
+                    toast.error('Bitte füllen Sie alle Felder aus');
+                    return false;
+                }
+                if (formData.password !== formData.confirmPassword) {
+                    toast.error('Die Passwörter stimmen nicht überein');
+                    return false;
+                }
+                if (formData.password.length < 8) {
+                    toast.error(
+                        'Das Passwort muss mindestens 8 Zeichen lang sein'
+                    );
+                    return false;
+                }
+                return true;
+
+            case 'personal':
+                if (
+                    !formData.firstName ||
+                    !formData.lastName ||
+                    !formData.dateOfBirth
+                ) {
+                    toast.error('Bitte füllen Sie alle Felder aus');
+                    return false;
+                }
+                return true;
+
+            case 'financial':
+                if (!formData.employmentStatus || !formData.monthlyIncome) {
+                    toast.error('Bitte füllen Sie alle Felder aus');
+                    return false;
+                }
+                return true;
+
+            case 'goals':
+                if (!formData.savingsGoal || !formData.riskTolerance) {
+                    toast.error('Bitte füllen Sie alle Felder aus');
+                    return false;
+                }
+                return true;
+
+            default:
+                return true;
+        }
+    };
+
     const handleNext = () => {
+        if (!validateStep()) return;
+
         const steps: RegisterStep[] = [
-            'welcome',
-            'personal',
-            'security',
             'account',
-            'employment',
+            'personal',
             'financial',
             'goals',
-            'verification',
         ];
         const currentIndex = steps.indexOf(currentStep);
         if (currentIndex < steps.length - 1) {
@@ -195,14 +179,10 @@ export default function Register() {
 
     const handleBack = () => {
         const steps: RegisterStep[] = [
-            'welcome',
-            'personal',
-            'security',
             'account',
-            'employment',
+            'personal',
             'financial',
             'goals',
-            'verification',
         ];
         const currentIndex = steps.indexOf(currentStep);
         if (currentIndex > 0) {
@@ -210,523 +190,300 @@ export default function Register() {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Implementiere Registrierungslogik hier
-        console.log('Registration data:', formData);
+        if (!validateStep()) return;
+
+        setIsLoading(true);
+        try {
+            const { confirmPassword: _, ...registrationData } = formData;
+            await authApi.register({
+                ...registrationData,
+                monthlyIncome: parseFloat(registrationData.monthlyIncome),
+                savingsGoal: parseFloat(registrationData.savingsGoal),
+            });
+            toast.success('Registrierung erfolgreich');
+            navigate('/');
+        } catch (error) {
+            const err = error as AxiosError<ApiError>;
+            toast.error(
+                err.response?.data?.error || 'Ein Fehler ist aufgetreten'
+            );
+        } finally {
+            setIsLoading(false);
+        }
     };
-
-    const steps: RegisterStep[] = [
-        'welcome',
-        'personal',
-        'security',
-        'account',
-        'employment',
-        'financial',
-        'goals',
-        'verification',
-    ];
-
-    const currentStepIndex = steps.indexOf(currentStep);
-    const progress = (currentStepIndex / (steps.length - 1)) * 100;
-
-    const renderStepIndicator = () => (
-        <div className='mb-8'>
-            <div className='flex justify-between mb-2'>
-                <span className='text-sm text-gray-400'>
-                    Schritt {currentStepIndex + 1} von {steps.length}
-                </span>
-                <span className='text-sm text-gray-400'>
-                    {Math.round(progress)}%
-                </span>
-            </div>
-            <div className='w-full h-2 bg-gray-800 rounded-full overflow-hidden'>
-                <motion.div
-                    className='h-full bg-blue-500'
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ duration: 0.3 }}
-                />
-            </div>
-        </div>
-    );
 
     const renderStepContent = () => {
         switch (currentStep) {
-            case 'welcome':
-                return (
-                    <motion.div
-                        key='welcome'
-                        variants={itemVariants}
-                        className='space-y-6 text-center'
-                    >
-                        <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ type: 'spring', duration: 0.5 }}
-                            className='w-32 h-32 mx-auto mb-8'
-                        >
-                            <img
-                                src='/logo.svg'
-                                alt='Finora Logo'
-                                className='w-full h-full'
-                            />
-                        </motion.div>
-                        <h1 className='text-3xl font-bold text-white'>
-                            Willkommen bei Finora
-                        </h1>
-                        <p className='text-gray-300 max-w-md mx-auto'>
-                            Ihr persönlicher Finanzassistent, der Ihnen hilft,
-                            Ihre finanziellen Ziele zu erreichen.
-                        </p>
-                        <div className='space-y-4 mt-8'>
-                            <motion.div
-                                whileHover={{ scale: 1.02 }}
-                                className='p-4 bg-black/20 rounded-lg'
-                            >
-                                <h3 className='text-white font-medium'>
-                                    Smart Banking
-                                </h3>
-                                <p className='text-gray-400 text-sm'>
-                                    Verwalten Sie Ihre Finanzen intelligent und
-                                    effizient
-                                </p>
-                            </motion.div>
-                            <motion.div
-                                whileHover={{ scale: 1.02 }}
-                                className='p-4 bg-black/20 rounded-lg'
-                            >
-                                <h3 className='text-white font-medium'>
-                                    Automatische Kategorisierung
-                                </h3>
-                                <p className='text-gray-400 text-sm'>
-                                    Behalten Sie den Überblick über Ihre
-                                    Ausgaben
-                                </p>
-                            </motion.div>
-                            <motion.div
-                                whileHover={{ scale: 1.02 }}
-                                className='p-4 bg-black/20 rounded-lg'
-                            >
-                                <h3 className='text-white font-medium'>
-                                    Finanzielle Ziele
-                                </h3>
-                                <p className='text-gray-400 text-sm'>
-                                    Setzen und erreichen Sie Ihre Sparziele
-                                </p>
-                            </motion.div>
-                        </div>
-                    </motion.div>
-                );
-            case 'personal':
-                return (
-                    <motion.div
-                        key='personal'
-                        variants={itemVariants}
-                        className='space-y-4'
-                    >
-                        <div className='flex items-center space-x-4 mb-6'>
-                            <div className='p-3 bg-blue-500/10 rounded-lg'>
-                                <FiUser className='w-6 h-6 text-blue-400' />
-                            </div>
-                            <div>
-                                <h2 className='text-2xl font-bold text-white'>
-                                    {STEPS[currentStep].title}
-                                </h2>
-                                <p className='text-gray-400'>
-                                    {STEPS[currentStep].description}
-                                </p>
-                            </div>
-                        </div>
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                Vorname
-                            </label>
-                            <motion.input
-                                whileFocus={{ scale: 1.01 }}
-                                name='firstName'
-                                type='text'
-                                value={formData.firstName}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            />
-                        </div>
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                Nachname
-                            </label>
-                            <motion.input
-                                whileFocus={{ scale: 1.01 }}
-                                name='lastName'
-                                type='text'
-                                value={formData.lastName}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            />
-                        </div>
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                E-Mail
-                            </label>
-                            <motion.input
-                                whileFocus={{ scale: 1.01 }}
-                                name='email'
-                                type='email'
-                                value={formData.email}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            />
-                        </div>
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                Passwort
-                            </label>
-                            <motion.input
-                                whileFocus={{ scale: 1.01 }}
-                                name='password'
-                                type='password'
-                                value={formData.password}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            />
-                        </div>
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                Passwort bestätigen
-                            </label>
-                            <motion.input
-                                whileFocus={{ scale: 1.01 }}
-                                name='confirmPassword'
-                                type='password'
-                                value={formData.confirmPassword}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            />
-                        </div>
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                Geburtsdatum
-                            </label>
-                            <motion.input
-                                whileFocus={{ scale: 1.01 }}
-                                name='dateOfBirth'
-                                type='date'
-                                value={formData.dateOfBirth}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            />
-                        </div>
-                    </motion.div>
-                );
-            case 'security':
-                return (
-                    <motion.div
-                        key='security'
-                        variants={itemVariants}
-                        className='space-y-4'
-                    >
-                        <div className='flex items-center space-x-4 mb-6'>
-                            <div className='p-3 bg-purple-500/10 rounded-lg'>
-                                <FiLock className='w-6 h-6 text-purple-400' />
-                            </div>
-                            <div>
-                                <h2 className='text-2xl font-bold text-white'>
-                                    {STEPS[currentStep].title}
-                                </h2>
-                                <p className='text-gray-400'>
-                                    {STEPS[currentStep].description}
-                                </p>
-                            </div>
-                        </div>
-                        <div className='space-y-4'>
-                            <div className='space-y-2'>
-                                <label className='block text-sm font-medium text-gray-200'>
-                                    E-Mail
-                                </label>
-                                <motion.input
-                                    whileFocus={{ scale: 1.01 }}
-                                    name='email'
-                                    type='email'
-                                    value={formData.email}
-                                    onChange={handleInputChange}
-                                    className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-500'
-                                    required
-                                />
-                            </div>
-                            <div className='space-y-2'>
-                                <label className='block text-sm font-medium text-gray-200'>
-                                    Passwort
-                                </label>
-                                <motion.input
-                                    whileFocus={{ scale: 1.01 }}
-                                    name='password'
-                                    type='password'
-                                    value={formData.password}
-                                    onChange={handleInputChange}
-                                    className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-500'
-                                    required
-                                />
-                            </div>
-                            <div className='space-y-2'>
-                                <label className='block text-sm font-medium text-gray-200'>
-                                    Passwort bestätigen
-                                </label>
-                                <motion.input
-                                    whileFocus={{ scale: 1.01 }}
-                                    name='confirmPassword'
-                                    type='password'
-                                    value={formData.confirmPassword}
-                                    onChange={handleInputChange}
-                                    className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-500'
-                                    required
-                                />
-                            </div>
-                        </div>
-                    </motion.div>
-                );
             case 'account':
                 return (
                     <motion.div
                         key='account'
-                        variants={itemVariants}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
                         className='space-y-4'
                     >
-                        <h2 className='text-2xl font-bold text-white mb-6'>
-                            Bankverbindung
-                        </h2>
                         <div className='space-y-2'>
                             <label className='block text-sm font-medium text-gray-200'>
-                                IBAN
+                                E-Mail
                             </label>
-                            <motion.input
-                                whileFocus={{ scale: 1.01 }}
-                                name='iban'
-                                type='text'
-                                value={formData.iban}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            />
+                            <div className='relative'>
+                                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
+                                    <FiMail className='h-5 w-5 text-gray-500' />
+                                </div>
+                                <input
+                                    type='email'
+                                    name='email'
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    required
+                                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
+                                    placeholder='ihre@email.de'
+                                />
+                            </div>
                         </div>
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                Bank
-                            </label>
-                            <motion.input
-                                whileFocus={{ scale: 1.01 }}
-                                name='bankName'
-                                type='text'
-                                value={formData.bankName}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            />
-                        </div>
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                Kontoinhaber
-                            </label>
-                            <motion.input
-                                whileFocus={{ scale: 1.01 }}
-                                name='accountHolder'
-                                type='text'
-                                value={formData.accountHolder}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            />
+
+                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                            <div className='space-y-2'>
+                                <label className='block text-sm font-medium text-gray-200'>
+                                    Passwort
+                                </label>
+                                <div className='relative'>
+                                    <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
+                                        <FiLock className='h-5 w-5 text-gray-500' />
+                                    </div>
+                                    <input
+                                        type='password'
+                                        name='password'
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        required
+                                        minLength={8}
+                                        className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
+                                        placeholder='••••••••'
+                                    />
+                                </div>
+                            </div>
+
+                            <div className='space-y-2'>
+                                <label className='block text-sm font-medium text-gray-200'>
+                                    Passwort bestätigen
+                                </label>
+                                <div className='relative'>
+                                    <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
+                                        <FiLock className='h-5 w-5 text-gray-500' />
+                                    </div>
+                                    <input
+                                        type='password'
+                                        name='confirmPassword'
+                                        value={formData.confirmPassword}
+                                        onChange={handleChange}
+                                        required
+                                        className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
+                                        placeholder='••••••••'
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </motion.div>
                 );
-            case 'employment':
+
+            case 'personal':
                 return (
                     <motion.div
-                        key='employment'
-                        variants={itemVariants}
+                        key='personal'
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
                         className='space-y-4'
                     >
-                        <h2 className='text-2xl font-bold text-white mb-6'>
-                            Beschäftigung
-                        </h2>
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                Monatliches Einkommen
-                            </label>
-                            <motion.input
-                                whileFocus={{ scale: 1.01 }}
-                                name='monthlyIncome'
-                                type='number'
-                                value={formData.monthlyIncome}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            />
+                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                            <div className='space-y-2'>
+                                <label className='block text-sm font-medium text-gray-200'>
+                                    Vorname
+                                </label>
+                                <div className='relative'>
+                                    <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
+                                        <FiUser className='h-5 w-5 text-gray-500' />
+                                    </div>
+                                    <input
+                                        type='text'
+                                        name='firstName'
+                                        value={formData.firstName}
+                                        onChange={handleChange}
+                                        required
+                                        className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
+                                    />
+                                </div>
+                            </div>
+
+                            <div className='space-y-2'>
+                                <label className='block text-sm font-medium text-gray-200'>
+                                    Nachname
+                                </label>
+                                <div className='relative'>
+                                    <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
+                                        <FiUser className='h-5 w-5 text-gray-500' />
+                                    </div>
+                                    <input
+                                        type='text'
+                                        name='lastName'
+                                        value={formData.lastName}
+                                        onChange={handleChange}
+                                        required
+                                        className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
+                                    />
+                                </div>
+                            </div>
                         </div>
+
                         <div className='space-y-2'>
                             <label className='block text-sm font-medium text-gray-200'>
-                                Beschäftigungsstatus
+                                Geburtsdatum
                             </label>
-                            <motion.select
-                                whileFocus={{ scale: 1.01 }}
-                                name='employmentStatus'
-                                value={formData.employmentStatus}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            >
-                                <option value=''>Bitte wählen</option>
-                                <option value='employed'>Angestellt</option>
-                                <option value='self-employed'>
-                                    Selbstständig
-                                </option>
-                                <option value='student'>Student</option>
-                                <option value='retired'>Rentner</option>
-                                <option value='other'>Sonstiges</option>
-                            </motion.select>
+                            <div className='relative'>
+                                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
+                                    <FiCalendar className='h-5 w-5 text-gray-500' />
+                                </div>
+                                <input
+                                    type='date'
+                                    name='dateOfBirth'
+                                    value={formData.dateOfBirth}
+                                    onChange={handleChange}
+                                    required
+                                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
+                                />
+                            </div>
                         </div>
                     </motion.div>
                 );
+
             case 'financial':
                 return (
                     <motion.div
                         key='financial'
-                        variants={itemVariants}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
                         className='space-y-4'
                     >
-                        <h2 className='text-2xl font-bold text-white mb-6'>
-                            Finanzen
-                        </h2>
                         <div className='space-y-2'>
                             <label className='block text-sm font-medium text-gray-200'>
-                                Monatliches Sparziel
+                                Beschäftigungsstatus
                             </label>
-                            <motion.input
-                                whileFocus={{ scale: 1.01 }}
-                                name='savingsGoal'
-                                type='number'
-                                value={formData.savingsGoal}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            />
+                            <div className='relative'>
+                                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
+                                    <FiBriefcase className='h-5 w-5 text-gray-500' />
+                                </div>
+                                <select
+                                    name='employmentStatus'
+                                    value={formData.employmentStatus}
+                                    onChange={handleChange}
+                                    required
+                                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
+                                >
+                                    <option value=''>Bitte wählen</option>
+                                    {EMPLOYMENT_STATUS_OPTIONS.map((status) => (
+                                        <option key={status} value={status}>
+                                            {status}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
+
                         <div className='space-y-2'>
                             <label className='block text-sm font-medium text-gray-200'>
-                                Risikobereitschaft
+                                Monatliches Einkommen
                             </label>
-                            <motion.select
-                                whileFocus={{ scale: 1.01 }}
-                                name='riskTolerance'
-                                value={formData.riskTolerance}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            >
-                                <option value=''>Bitte wählen</option>
-                                <option value='conservative'>
-                                    Konservativ
-                                </option>
-                                <option value='moderate'>Moderat</option>
-                                <option value='aggressive'>
-                                    Risikofreudig
-                                </option>
-                            </motion.select>
+                            <div className='relative'>
+                                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
+                                    <FiDollarSign className='h-5 w-5 text-gray-500' />
+                                </div>
+                                <input
+                                    type='number'
+                                    name='monthlyIncome'
+                                    value={formData.monthlyIncome}
+                                    onChange={handleChange}
+                                    required
+                                    min='0'
+                                    step='0.01'
+                                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
+                                />
+                            </div>
                         </div>
                     </motion.div>
                 );
+
             case 'goals':
                 return (
                     <motion.div
                         key='goals'
-                        variants={itemVariants}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
                         className='space-y-4'
                     >
-                        <h2 className='text-2xl font-bold text-white mb-6'>
-                            Ziele
-                        </h2>
                         <div className='space-y-2'>
                             <label className='block text-sm font-medium text-gray-200'>
                                 Monatliches Sparziel
                             </label>
-                            <motion.input
-                                whileFocus={{ scale: 1.01 }}
-                                name='savingsGoal'
-                                type='number'
-                                value={formData.savingsGoal}
-                                onChange={handleInputChange}
-                                className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                required
-                            />
+                            <div className='relative'>
+                                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
+                                    <FiTarget className='h-5 w-5 text-gray-500' />
+                                </div>
+                                <input
+                                    type='number'
+                                    name='savingsGoal'
+                                    value={formData.savingsGoal}
+                                    onChange={handleChange}
+                                    required
+                                    min='0'
+                                    step='0.01'
+                                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
+                                />
+                            </div>
                         </div>
-                    </motion.div>
-                );
-            case 'verification':
-                return (
-                    <motion.div
-                        key='verification'
-                        variants={itemVariants}
-                        className='space-y-4'
-                    >
-                        <h2 className='text-2xl font-bold text-white mb-6'>
-                            Bestätigung
-                        </h2>
-                        <div className='space-y-4'>
-                            <motion.div
-                                whileHover={{ scale: 1.01 }}
-                                className='flex items-center space-x-3'
-                            >
-                                <input
-                                    type='checkbox'
-                                    name='acceptTerms'
-                                    checked={formData.acceptTerms}
-                                    onChange={handleInputChange}
-                                    className='h-4 w-4 rounded border-gray-800 bg-black/30 text-blue-500 focus:ring-blue-500'
-                                />
-                                <label className='text-sm text-gray-200'>
-                                    Ich akzeptiere die Nutzungsbedingungen
-                                </label>
-                            </motion.div>
-                            <motion.div
-                                whileHover={{ scale: 1.01 }}
-                                className='flex items-center space-x-3'
-                            >
-                                <input
-                                    type='checkbox'
-                                    name='acceptPrivacy'
-                                    checked={formData.acceptPrivacy}
-                                    onChange={handleInputChange}
-                                    className='h-4 w-4 rounded border-gray-800 bg-black/30 text-blue-500 focus:ring-blue-500'
-                                />
-                                <label className='text-sm text-gray-200'>
-                                    Ich akzeptiere die Datenschutzerklärung
-                                </label>
-                            </motion.div>
-                            <motion.div
-                                whileHover={{ scale: 1.01 }}
-                                className='flex items-center space-x-3'
-                            >
-                                <input
-                                    type='checkbox'
-                                    name='acceptDataProcessing'
-                                    checked={formData.acceptDataProcessing}
-                                    onChange={handleInputChange}
-                                    className='h-4 w-4 rounded border-gray-800 bg-black/30 text-blue-500 focus:ring-blue-500'
-                                />
-                                <label className='text-sm text-gray-200'>
-                                    Ich stimme der Verarbeitung meiner Daten zu
-                                </label>
-                            </motion.div>
+
+                        <div className='space-y-2'>
+                            <label className='block text-sm font-medium text-gray-200'>
+                                Risikobereitschaft
+                            </label>
+                            <div className='relative'>
+                                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
+                                    <FiTarget className='h-5 w-5 text-gray-500' />
+                                </div>
+                                <select
+                                    name='riskTolerance'
+                                    value={formData.riskTolerance}
+                                    onChange={handleChange}
+                                    required
+                                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
+                                >
+                                    <option value=''>Bitte wählen</option>
+                                    {RISK_TOLERANCE_OPTIONS.map((option) => (
+                                        <option key={option} value={option}>
+                                            {option}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </motion.div>
                 );
         }
     };
+
+    const steps = [
+        'account',
+        'personal',
+        'financial',
+        'goals',
+    ] as RegisterStep[];
+    const currentStepIndex = steps.indexOf(currentStep);
+    const progress = ((currentStepIndex + 1) / steps.length) * 100;
 
     return (
         <div className='min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900'>
@@ -753,41 +510,96 @@ export default function Register() {
                                 Finora
                             </h1>
                         </motion.div>
-                        {currentStep !== 'welcome' && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className='text-sm text-gray-400'
-                            >
-                                {STEPS[currentStep].title}
-                            </motion.div>
-                        )}
                     </div>
                 </div>
             </motion.nav>
 
-            <div className='flex items-center justify-center p-4 mt-8'>
+            <div className='max-w-2xl mx-auto px-4 py-8'>
                 <motion.div
                     initial='hidden'
                     animate='visible'
-                    variants={containerVariants}
-                    className='w-full max-w-2xl'
+                    variants={{
+                        hidden: { opacity: 0 },
+                        visible: { opacity: 1 },
+                    }}
                 >
                     <GlassCard className='backdrop-blur-md bg-black/30'>
-                        <form onSubmit={handleSubmit} className='space-y-6'>
-                            {currentStep !== 'welcome' && renderStepIndicator()}
-                            <AnimatePresence mode='wait' custom={currentStep}>
+                        {/* Logo */}
+                        <div className='flex flex-col items-center mb-8'>
+                            <motion.div
+                                initial={{ scale: 0.5, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ duration: 0.5 }}
+                            >
+                                <img
+                                    src='/logo.svg'
+                                    alt='Finora'
+                                    className='h-16 w-16 mb-4'
+                                />
+                            </motion.div>
+                            <motion.div
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.2, duration: 0.5 }}
+                                className='text-center'
+                            >
+                                <h1 className='text-2xl font-bold text-white mb-2'>
+                                    Willkommen bei Finora
+                                </h1>
+                                <p className='text-gray-400'>
+                                    Ihr Weg zu intelligenter Finanzverwaltung
+                                </p>
+                            </motion.div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className='mb-8'>
+                            <div className='flex justify-between items-center mb-2'>
+                                <div className='flex items-center space-x-3'>
+                                    {STEPS[currentStep].icon}
+                                    <div>
+                                        <h2 className='text-lg font-semibold text-white'>
+                                            {STEPS[currentStep].title}
+                                        </h2>
+                                        <p className='text-sm text-gray-400'>
+                                            {STEPS[currentStep].description}
+                                        </p>
+                                    </div>
+                                </div>
+                                <span className='text-sm text-gray-400'>
+                                    Schritt {currentStepIndex + 1} von{' '}
+                                    {steps.length}
+                                </span>
+                            </div>
+                            <div className='h-2 bg-gray-800 rounded-full overflow-hidden'>
+                                <motion.div
+                                    className='h-full bg-blue-500'
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${progress}%` }}
+                                    transition={{ duration: 0.3 }}
+                                />
+                            </div>
+                        </div>
+
+                        <form
+                            onSubmit={
+                                currentStep === 'goals'
+                                    ? handleSubmit
+                                    : (e) => {
+                                          e.preventDefault();
+                                          handleNext();
+                                      }
+                            }
+                        >
+                            <AnimatePresence mode='wait'>
                                 {renderStepContent()}
                             </AnimatePresence>
 
-                            <motion.div
-                                variants={itemVariants}
-                                className='flex justify-between mt-8'
-                            >
-                                {currentStep !== 'welcome' && (
+                            <div className='flex justify-between mt-8'>
+                                {currentStepIndex > 0 && (
                                     <motion.button
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
                                         type='button'
                                         onClick={handleBack}
                                         className='flex items-center px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors'
@@ -796,34 +608,54 @@ export default function Register() {
                                         Zurück
                                     </motion.button>
                                 )}
+
                                 <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
                                     type={
-                                        currentStep === 'verification'
+                                        currentStep === 'goals'
                                             ? 'submit'
                                             : 'button'
                                     }
                                     onClick={
-                                        currentStep === 'verification'
+                                        currentStep === 'goals'
                                             ? undefined
                                             : handleNext
                                     }
+                                    disabled={isLoading}
                                     className='flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ml-auto'
                                 >
-                                    {currentStep === 'verification' ? (
-                                        'Registrieren'
+                                    {isLoading ? (
+                                        <div className='w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin' />
                                     ) : (
                                         <>
-                                            {currentStep === 'welcome'
-                                                ? 'Starten'
+                                            {currentStep === 'goals'
+                                                ? 'Registrierung abschließen'
                                                 : 'Weiter'}
                                             <FiArrowRight className='ml-2' />
                                         </>
                                     )}
                                 </motion.button>
-                            </motion.div>
+                            </div>
                         </form>
+
+                        <motion.div
+                            variants={{
+                                hidden: { opacity: 0, y: 20 },
+                                visible: { opacity: 1, y: 0 },
+                            }}
+                            className='text-center text-gray-300 mt-6'
+                        >
+                            <span>Bereits ein Konto? </span>
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => navigate('/login')}
+                                className='text-blue-400 hover:text-blue-300 font-medium transition-colors'
+                            >
+                                Jetzt anmelden
+                            </motion.button>
+                        </motion.div>
                     </GlassCard>
                 </motion.div>
             </div>

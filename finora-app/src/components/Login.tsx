@@ -3,16 +3,36 @@ import { motion } from 'framer-motion';
 import { GlassCard } from './common/GlassCard';
 import { useNavigate } from 'react-router-dom';
 import { FiMail, FiLock, FiArrowRight } from 'react-icons/fi';
+import { authApi } from '../services/api';
+import { toast } from 'sonner';
+import { AxiosError } from 'axios';
+
+interface ApiError {
+    error: string;
+}
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Implementiere Login-Logik hier
-        console.log('Login attempt:', { email, password });
+        setIsLoading(true);
+
+        try {
+            await authApi.login(email, password);
+            toast.success('Login erfolgreich');
+            navigate('/');
+        } catch (error) {
+            const err = error as AxiosError<ApiError>;
+            toast.error(
+                err.response?.data?.error || 'Ein Fehler ist aufgetreten'
+            );
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const containerVariants = {
@@ -140,9 +160,19 @@ export default function Login() {
                                     variants={itemVariants}
                                     className='space-y-2'
                                 >
-                                    <label className='block text-sm font-medium text-gray-200'>
-                                        Passwort
-                                    </label>
+                                    <div className='flex justify-between'>
+                                        <label className='block text-sm font-medium text-gray-200'>
+                                            Passwort
+                                        </label>
+                                        <motion.a
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            href='#'
+                                            className='text-blue-400 hover:text-blue-300 transition-colors'
+                                        >
+                                            Passwort vergessen?
+                                        </motion.a>
+                                    </div>
                                     <div className='relative'>
                                         <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
                                             <FiLock className='h-5 w-5 text-gray-500' />
@@ -163,45 +193,23 @@ export default function Login() {
 
                                 <motion.div
                                     variants={itemVariants}
-                                    className='flex items-center justify-between text-sm'
-                                >
-                                    <div className='flex items-center'>
-                                        <motion.input
-                                            whileHover={{ scale: 1.1 }}
-                                            whileTap={{ scale: 0.9 }}
-                                            id='remember'
-                                            type='checkbox'
-                                            className='h-4 w-4 rounded border-gray-800 bg-black/30 text-blue-500 focus:ring-blue-500'
-                                        />
-                                        <label
-                                            htmlFor='remember'
-                                            className='ml-2 text-gray-300'
-                                        >
-                                            Angemeldet bleiben
-                                        </label>
-                                    </div>
-                                    <motion.a
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        href='#'
-                                        className='text-blue-400 hover:text-blue-300 transition-colors'
-                                    >
-                                        Passwort vergessen?
-                                    </motion.a>
-                                </motion.div>
-
-                                <motion.div
-                                    variants={itemVariants}
                                     className='pt-2'
                                 >
                                     <motion.button
                                         whileHover={{ scale: 1.02 }}
                                         whileTap={{ scale: 0.98 }}
                                         type='submit'
-                                        className='w-full flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors'
+                                        disabled={isLoading}
+                                        className='w-full flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                                     >
-                                        Anmelden
-                                        <FiArrowRight className='ml-2' />
+                                        {isLoading ? (
+                                            <div className='w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin' />
+                                        ) : (
+                                            <>
+                                                Anmelden
+                                                <FiArrowRight className='ml-2' />
+                                            </>
+                                        )}
                                     </motion.button>
                                 </motion.div>
                             </form>
