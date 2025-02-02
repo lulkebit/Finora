@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="128" height="128" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect width="512" height="512" rx="256" fill="url(#gradient)" />
     <path d="M256 128C179.3 128 117.3 190 117.3 266.7C117.3 343.4 179.3 405.3 256 405.3C332.7 405.3 394.7 343.4 394.7 266.7" stroke="white" stroke-width="32" stroke-linecap="round"/>
     <path d="M256 202.7C220.7 202.7 192 231.4 192 266.7C192 302 220.7 330.7 256 330.7C291.3 330.7 320 302 320 266.7" stroke="white" stroke-width="32" stroke-linecap="round"/>
