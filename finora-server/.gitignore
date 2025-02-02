@@ -26,4 +26,6 @@ dist-ssr
 # Million Lint
 .million
 
-todo.md
+.env
+.env.local
+.env.*.local
