@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { GlassCard } from './common/GlassCard';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { FiMail, FiLock, FiArrowRight } from 'react-icons/fi';
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -19,7 +20,7 @@ export default function Login() {
         visible: {
             opacity: 1,
             transition: {
-                duration: 0.5,
+                duration: 0.3,
                 staggerChildren: 0.1,
             },
         },
@@ -52,8 +53,13 @@ export default function Login() {
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             transition={{ delay: 0.2, duration: 0.3 }}
-                            className='flex-shrink-0'
+                            className='flex items-center space-x-3'
                         >
+                            <img
+                                src='/logo.svg'
+                                alt='Finora'
+                                className='h-8 w-8'
+                            />
                             <h1 className='text-xl font-semibold text-white'>
                                 Finora
                             </h1>
@@ -72,77 +78,87 @@ export default function Login() {
                     <GlassCard className='backdrop-blur-md bg-black/30'>
                         <motion.div
                             variants={containerVariants}
-                            className='space-y-6'
+                            className='space-y-8'
                         >
-                            <motion.div
-                                variants={itemVariants}
-                                className='text-center'
-                            >
-                                <h1 className='text-3xl font-bold text-white mb-2'>
+                            <div className='text-center'>
+                                <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{
+                                        type: 'spring',
+                                        duration: 0.5,
+                                    }}
+                                    className='w-24 h-24 mx-auto mb-6'
+                                >
+                                    <img
+                                        src='/logo.svg'
+                                        alt='Finora Logo'
+                                        className='w-full h-full'
+                                    />
+                                </motion.div>
+                                <motion.h1
+                                    variants={itemVariants}
+                                    className='text-3xl font-bold text-white mb-2'
+                                >
                                     Willkommen zurück
-                                </h1>
-                                <p className='text-gray-300'>
+                                </motion.h1>
+                                <motion.p
+                                    variants={itemVariants}
+                                    className='text-gray-400'
+                                >
                                     Melden Sie sich bei Ihrem Konto an
-                                </p>
-                            </motion.div>
+                                </motion.p>
+                            </div>
 
-                            <form onSubmit={handleSubmit} className='space-y-4'>
+                            <form onSubmit={handleSubmit} className='space-y-6'>
                                 <motion.div
                                     variants={itemVariants}
                                     className='space-y-2'
                                 >
-                                    <label
-                                        htmlFor='email'
-                                        className='block text-sm font-medium text-gray-200'
-                                    >
+                                    <label className='block text-sm font-medium text-gray-200'>
                                         E-Mail
                                     </label>
-                                    <motion.input
-                                        whileFocus={{ scale: 1.01 }}
-                                        transition={{
-                                            type: 'spring',
-                                            stiffness: 300,
-                                            damping: 20,
-                                        }}
-                                        id='email'
-                                        type='email'
-                                        value={email}
-                                        onChange={(e) =>
-                                            setEmail(e.target.value)
-                                        }
-                                        required
-                                        className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                        placeholder='ihre@email.de'
-                                    />
+                                    <div className='relative'>
+                                        <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                                            <FiMail className='h-5 w-5 text-gray-500' />
+                                        </div>
+                                        <motion.input
+                                            whileFocus={{ scale: 1.01 }}
+                                            type='email'
+                                            value={email}
+                                            onChange={(e) =>
+                                                setEmail(e.target.value)
+                                            }
+                                            required
+                                            className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
+                                            placeholder='ihre@email.de'
+                                        />
+                                    </div>
                                 </motion.div>
 
                                 <motion.div
                                     variants={itemVariants}
                                     className='space-y-2'
                                 >
-                                    <label
-                                        htmlFor='password'
-                                        className='block text-sm font-medium text-gray-200'
-                                    >
+                                    <label className='block text-sm font-medium text-gray-200'>
                                         Passwort
                                     </label>
-                                    <motion.input
-                                        whileFocus={{ scale: 1.01 }}
-                                        transition={{
-                                            type: 'spring',
-                                            stiffness: 300,
-                                            damping: 20,
-                                        }}
-                                        id='password'
-                                        type='password'
-                                        value={password}
-                                        onChange={(e) =>
-                                            setPassword(e.target.value)
-                                        }
-                                        required
-                                        className='w-full px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
-                                        placeholder='••••••••'
-                                    />
+                                    <div className='relative'>
+                                        <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                                            <FiLock className='h-5 w-5 text-gray-500' />
+                                        </div>
+                                        <motion.input
+                                            whileFocus={{ scale: 1.01 }}
+                                            type='password'
+                                            value={password}
+                                            onChange={(e) =>
+                                                setPassword(e.target.value)
+                                            }
+                                            required
+                                            className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500'
+                                            placeholder='••••••••'
+                                        />
+                                    </div>
                                 </motion.div>
 
                                 <motion.div
@@ -174,20 +190,25 @@ export default function Login() {
                                     </motion.a>
                                 </motion.div>
 
-                                <motion.button
+                                <motion.div
                                     variants={itemVariants}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    type='submit'
-                                    className='w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200'
+                                    className='pt-2'
                                 >
-                                    Anmelden
-                                </motion.button>
+                                    <motion.button
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        type='submit'
+                                        className='w-full flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors'
+                                    >
+                                        Anmelden
+                                        <FiArrowRight className='ml-2' />
+                                    </motion.button>
+                                </motion.div>
                             </form>
 
                             <motion.div
                                 variants={itemVariants}
-                                className='text-center text-gray-300'
+                                className='text-center text-gray-300 pt-4'
                             >
                                 <span>Noch kein Konto? </span>
                                 <motion.button

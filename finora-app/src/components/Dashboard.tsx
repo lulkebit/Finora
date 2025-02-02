@@ -12,6 +12,7 @@ import { TransactionList } from './transactions/TransactionList';
 import { CategoryGrid } from './categories/CategoryGrid';
 import { ContractList } from './contracts/ContractList';
 import { TabNavigation } from './common/TabNavigation';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Beispieldaten (später durch echte Daten ersetzen)
 const mockTransactions = [
@@ -97,72 +98,143 @@ export default function Dashboard() {
         },
     ];
 
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                duration: 0.3,
+                staggerChildren: 0.1,
+            },
+        },
+    };
+
+    const itemVariants = {
+        hidden: { y: 20, opacity: 0 },
+        visible: {
+            y: 0,
+            opacity: 1,
+            transition: {
+                type: 'spring',
+                stiffness: 100,
+                damping: 12,
+            },
+        },
+    };
+
     return (
         <div className='min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900'>
-            {/* Navigation */}
-            <nav className='backdrop-blur-md bg-black/30 border-b border-gray-800'>
+            <motion.nav
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                className='backdrop-blur-md bg-black/30 border-b border-gray-800'
+            >
                 <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                     <div className='flex justify-between items-center h-16'>
-                        <div className='flex-shrink-0'>
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.2, duration: 0.3 }}
+                            className='flex-shrink-0'
+                        >
                             <h1 className='text-xl font-semibold text-white'>
                                 Finora
                             </h1>
-                        </div>
-                        <button
+                        </motion.div>
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                             onClick={() => (window.location.href = '/login')}
                             className='flex items-center text-gray-300 hover:text-white transition-colors'
                         >
                             <FiLogOut className='mr-2' />
                             <span>Abmelden</span>
-                        </button>
+                        </motion.button>
                     </div>
                 </div>
-            </nav>
+            </motion.nav>
 
-            {/* Main Content */}
-            <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-                <TabNavigation
-                    tabs={tabs}
-                    activeTab={activeTab}
-                    onTabChange={setActiveTab}
-                />
+            <motion.main
+                initial='hidden'
+                animate='visible'
+                variants={containerVariants}
+                className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'
+            >
+                <motion.div variants={itemVariants}>
+                    <TabNavigation
+                        tabs={tabs}
+                        activeTab={activeTab}
+                        onTabChange={setActiveTab}
+                    />
+                </motion.div>
 
-                {activeTab === 'overview' && (
-                    <>
-                        {/* Overview Cards */}
-                        <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-8'>
-                            <StatCard
-                                icon={FiDollarSign}
-                                iconBgColor='bg-blue-900/50'
-                                iconColor='text-blue-400'
-                                label='Kontostand'
-                                value='€2,543.00'
-                            />
-                            <StatCard
-                                icon={FiCreditCard}
-                                iconBgColor='bg-green-900/50'
-                                iconColor='text-green-400'
-                                label='Monatliche Ausgaben'
-                                value='€1,245.00'
-                            />
-                            <StatCard
-                                icon={FiPieChart}
-                                iconBgColor='bg-purple-900/50'
-                                iconColor='text-purple-400'
-                                label='Sparquote'
-                                value='32%'
-                            />
-                        </div>
+                <AnimatePresence mode='wait'>
+                    {activeTab === 'overview' && (
+                        <motion.div
+                            key='overview'
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <motion.div
+                                variants={containerVariants}
+                                className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-8'
+                            >
+                                <motion.div variants={itemVariants}>
+                                    <StatCard
+                                        icon={FiDollarSign}
+                                        iconBgColor='bg-blue-900/50'
+                                        iconColor='text-blue-400'
+                                        label='Kontostand'
+                                        value='€2,543.00'
+                                    />
+                                </motion.div>
+                                <motion.div variants={itemVariants}>
+                                    <StatCard
+                                        icon={FiCreditCard}
+                                        iconBgColor='bg-green-900/50'
+                                        iconColor='text-green-400'
+                                        label='Monatliche Ausgaben'
+                                        value='€1,245.00'
+                                    />
+                                </motion.div>
+                                <motion.div variants={itemVariants}>
+                                    <StatCard
+                                        icon={FiPieChart}
+                                        iconBgColor='bg-purple-900/50'
+                                        iconColor='text-purple-400'
+                                        label='Sparquote'
+                                        value='32%'
+                                    />
+                                </motion.div>
+                            </motion.div>
 
-                        <TransactionList transactions={mockTransactions} />
-                        <CategoryGrid categories={mockCategories} />
-                    </>
-                )}
+                            <motion.div variants={itemVariants}>
+                                <TransactionList
+                                    transactions={mockTransactions}
+                                />
+                            </motion.div>
+                            <motion.div variants={itemVariants}>
+                                <CategoryGrid categories={mockCategories} />
+                            </motion.div>
+                        </motion.div>
+                    )}
 
-                {activeTab === 'contracts' && (
-                    <ContractList contracts={mockContracts} />
-                )}
-            </main>
+                    {activeTab === 'contracts' && (
+                        <motion.div
+                            key='contracts'
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <ContractList contracts={mockContracts} />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </motion.main>
         </div>
     );
 }
