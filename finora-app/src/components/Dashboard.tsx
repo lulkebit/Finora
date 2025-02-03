@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     FiLogOut,
     FiPieChart,
@@ -85,6 +85,12 @@ const mockContracts: Contract[] = [
 
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState('overview');
+    const [user, setUser] = useState<any>(null);
+
+    useEffect(() => {
+        const currentUser = authApi.getCurrentUser();
+        setUser(currentUser);
+    }, []);
 
     const handleLogout = () => {
         authApi.logout();
@@ -154,15 +160,26 @@ export default function Dashboard() {
                                 </h1>
                             </div>
                         </motion.div>
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={handleLogout}
-                            className='flex items-center text-gray-300 hover:text-white transition-colors'
-                        >
-                            <FiLogOut className='mr-2' />
-                            <span>Abmelden</span>
-                        </motion.button>
+                        <div className='flex items-center space-x-4'>
+                            {user && (
+                                <motion.span
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className='text-gray-300'
+                                >
+                                    {user.firstName} {user.lastName}
+                                </motion.span>
+                            )}
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={handleLogout}
+                                className='flex items-center text-gray-300 hover:text-white transition-colors'
+                            >
+                                <FiLogOut className='mr-2' />
+                                <span>Abmelden</span>
+                            </motion.button>
+                        </div>
                     </div>
                 </div>
             </motion.nav>
