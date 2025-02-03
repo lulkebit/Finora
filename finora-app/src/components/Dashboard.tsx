@@ -14,27 +14,20 @@ import { CategoryGrid } from './categories/CategoryGrid';
 import { ContractList } from './contracts/ContractList';
 import { TabNavigation } from './common/TabNavigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { authApi } from '../services/api';
+import { authApi, dashboardApi } from '../services/api';
 import { BankAccounts } from './banking/BankAccounts';
 
-// Beispieldaten (später durch echte Daten ersetzen)
-const mockTransactions = [
-    {
-        id: 1,
-        description: 'Supermarkt Einkauf',
-        date: '01.02.2024',
-        amount: -24.99,
-    },
-    { id: 2, description: 'Restaurant', date: '31.01.2024', amount: -45.8 },
-    { id: 3, description: 'Gehalt', date: '30.01.2024', amount: 2800.0 },
-];
+type Transaction = {
+    id: number;
+    description: string;
+    date: string;
+    amount: number;
+};
 
-const mockCategories = [
-    { name: 'Lebensmittel', amount: 350.0 },
-    { name: 'Transport', amount: 150.0 },
-    { name: 'Unterhaltung', amount: 200.0 },
-    { name: 'Wohnen', amount: 800.0 },
-];
+type Category = {
+    name: string;
+    amount: number;
+};
 
 type Contract = {
     id: number;
@@ -46,52 +39,58 @@ type Contract = {
     provider?: string;
 };
 
-const mockContracts: Contract[] = [
-    {
-        id: 1,
-        name: 'Gehalt',
-        category: 'income',
-        amount: 2800.0,
-        interval: 'monthly',
-        nextPayment: '28.02.2024',
-        provider: 'Firma XYZ GmbH',
-    },
-    {
-        id: 2,
-        name: 'Netflix',
-        category: 'subscription',
-        amount: -12.99,
-        interval: 'monthly',
-        nextPayment: '15.02.2024',
-        provider: 'Netflix International',
-    },
-    {
-        id: 3,
-        name: 'Haftpflichtversicherung',
-        category: 'insurance',
-        amount: -59.99,
-        interval: 'yearly',
-        nextPayment: '01.04.2024',
-        provider: 'Allianz',
-    },
-    {
-        id: 4,
-        name: 'Stromvertrag',
-        category: 'utility',
-        amount: -85.0,
-        interval: 'monthly',
-        nextPayment: '01.02.2024',
-        provider: 'Stadtwerke',
-    },
-];
+type DashboardData = {
+    balance: number;
+    monthlyExpenses: number;
+    savingsRate: number;
+    transactions: Transaction[];
+    categories: Category[];
+    contracts: Contract[];
+};
 
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState('overview');
     const [user, setUser] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [dashboardData, setDashboardData] = useState<DashboardData | null>(
+        null
+    );
 
     useEffect(() => {
         const currentUser = authApi.getCurrentUser();
         setUser(currentUser);
+    }, []);
+
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                setLoading(true);
+                const [overview, transactions, categories, contracts] =
+                    await Promise.all([
+                        dashboardApi.getOverview(),
+                        dashboardApi.getTransactions(),
+                        dashboardApi.getCategories(),
+                        dashboardApi.getContracts(),
+                    ]);
+
+                setDashboardData({
+                    balance: overview.balance,
+                    monthlyExpenses: overview.monthlyExpenses,
+                    savingsRate: overview.savingsRate,
+                    transactions,
+                    categories,
+                    contracts,
+                });
+            } catch (err) {
+                setError('Fehler beim Laden der Daten');
+                console.error('Dashboard Fehler:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboardData();
     }, []);
 
     const handleLogout = () => {
@@ -139,6 +138,22 @@ export default function Dashboard() {
             },
         },
     };
+
+    if (loading) {
+        return (
+            <div className='min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center'>
+                <div className='text-white'>Lade Daten...</div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className='min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center'>
+                <div className='text-red-500'>{error}</div>
+            </div>
+        );
+    }
 
     return (
         <div className='min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900'>
@@ -206,7 +221,7 @@ export default function Dashboard() {
                 </motion.div>
 
                 <AnimatePresence mode='wait'>
-                    {activeTab === 'overview' && (
+                    {activeTab === 'overview' && dashboardData && (
                         <motion.div
                             key='overview'
                             initial={{ opacity: 0, x: -20 }}
@@ -224,7 +239,13 @@ export default function Dashboard() {
                                         iconBgColor='bg-blue-900/50'
                                         iconColor='text-blue-400'
                                         label='Kontostand'
-                                        value='€2,543.00'
+                                        value={`€${dashboardData.balance.toLocaleString(
+                                            'de-DE',
+                                            {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2,
+                                            }
+                                        )}`}
                                     />
                                 </motion.div>
                                 <motion.div variants={itemVariants}>
@@ -233,7 +254,13 @@ export default function Dashboard() {
                                         iconBgColor='bg-green-900/50'
                                         iconColor='text-green-400'
                                         label='Monatliche Ausgaben'
-                                        value='€1,245.00'
+                                        value={`€${dashboardData.monthlyExpenses.toLocaleString(
+                                            'de-DE',
+                                            {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2,
+                                            }
+                                        )}`}
                                     />
                                 </motion.div>
                                 <motion.div variants={itemVariants}>
@@ -242,18 +269,48 @@ export default function Dashboard() {
                                         iconBgColor='bg-purple-900/50'
                                         iconColor='text-purple-400'
                                         label='Sparquote'
-                                        value='32%'
+                                        value={`${dashboardData.savingsRate}%`}
                                     />
                                 </motion.div>
                             </motion.div>
 
                             <motion.div variants={itemVariants}>
-                                <TransactionList
-                                    transactions={mockTransactions}
-                                />
+                                <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+                                    <div className='bg-black/30 backdrop-blur-md rounded-lg p-6 border border-gray-800'>
+                                        <h3 className='text-lg font-semibold text-white mb-4'>
+                                            Letzte Transaktionen
+                                        </h3>
+                                        <TransactionList
+                                            transactions={
+                                                dashboardData.transactions
+                                            }
+                                        />
+                                    </div>
+                                    <div className='bg-black/30 backdrop-blur-md rounded-lg p-6 border border-gray-800'>
+                                        <h3 className='text-lg font-semibold text-white mb-4'>
+                                            Ausgaben nach Kategorien
+                                        </h3>
+                                        <CategoryGrid
+                                            categories={
+                                                dashboardData.categories
+                                            }
+                                        />
+                                    </div>
+                                </div>
                             </motion.div>
-                            <motion.div variants={itemVariants}>
-                                <CategoryGrid categories={mockCategories} />
+
+                            <motion.div
+                                variants={itemVariants}
+                                className='mt-6'
+                            >
+                                <div className='bg-black/30 backdrop-blur-md rounded-lg p-6 border border-gray-800'>
+                                    <h3 className='text-lg font-semibold text-white mb-4'>
+                                        Aktive Verträge
+                                    </h3>
+                                    <ContractList
+                                        contracts={dashboardData.contracts}
+                                    />
+                                </div>
                             </motion.div>
                         </motion.div>
                     )}
@@ -270,15 +327,19 @@ export default function Dashboard() {
                         </motion.div>
                     )}
 
-                    {activeTab === 'contracts' && (
+                    {activeTab === 'contracts' && dashboardData && (
                         <motion.div
                             key='contracts'
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: 20 }}
                             transition={{ duration: 0.3 }}
+                            className='bg-black/30 backdrop-blur-md rounded-lg p-6 border border-gray-800'
                         >
-                            <ContractList contracts={mockContracts} />
+                            <ContractList
+                                contracts={dashboardData.contracts}
+                                fullWidth
+                            />
                         </motion.div>
                     )}
                 </AnimatePresence>
