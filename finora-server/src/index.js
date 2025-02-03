@@ -3,6 +3,7 @@ const cors = require('cors');
 const db = require('./config/db');
 const { logger, httpLogger } = require('./config/logger');
 const authRoutes = require('./routes/auth.routes');
+const plaidRoutes = require('./routes/plaid');
 require('dotenv').config();
 
 const app = express();
@@ -21,6 +22,9 @@ app.get('/', (req, res) => {
 
 // Auth-Routen
 app.use('/api/auth', authRoutes);
+
+// Plaid-Routen
+app.use('/api/plaid', plaidRoutes);
 
 // API Status-Route
 app.get('/api/status', async (req, res) => {

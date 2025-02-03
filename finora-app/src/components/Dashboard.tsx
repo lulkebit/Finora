@@ -6,6 +6,7 @@ import {
     FiCreditCard,
     FiGrid,
     FiFileText,
+    FiDatabase,
 } from 'react-icons/fi';
 import { StatCard } from './common/StatCard';
 import { TransactionList } from './transactions/TransactionList';
@@ -14,6 +15,7 @@ import { ContractList } from './contracts/ContractList';
 import { TabNavigation } from './common/TabNavigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authApi } from '../services/api';
+import { BankAccounts } from './banking/BankAccounts';
 
 // Beispieldaten (später durch echte Daten ersetzen)
 const mockTransactions = [
@@ -101,6 +103,11 @@ export default function Dashboard() {
             id: 'overview',
             label: 'Übersicht',
             icon: <FiGrid className='w-4 h-4' />,
+        },
+        {
+            id: 'banking',
+            label: 'Bankkonten',
+            icon: <FiDatabase className='w-4 h-4' />,
         },
         {
             id: 'contracts',
@@ -248,6 +255,18 @@ export default function Dashboard() {
                             <motion.div variants={itemVariants}>
                                 <CategoryGrid categories={mockCategories} />
                             </motion.div>
+                        </motion.div>
+                    )}
+
+                    {activeTab === 'banking' && (
+                        <motion.div
+                            key='banking'
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <BankAccounts />
                         </motion.div>
                     )}
 
