@@ -7,7 +7,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
     plugins: [
         MillionLint.vite({
-            enabled: false,
+            enabled: true,
             auto: {
                 threshold: 0.05,
                 skip: ['useBadHook', /badVariable/g],

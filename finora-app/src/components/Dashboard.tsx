@@ -1,101 +1,54 @@
 import { useState, useEffect } from 'react';
 import {
     FiLogOut,
-    FiPieChart,
     FiDollarSign,
-    FiCreditCard,
     FiGrid,
+    FiTrendingUp,
+    FiTrendingDown,
+    FiCreditCard,
     FiFileText,
-    FiDatabase,
 } from 'react-icons/fi';
-import { StatCard } from './common/StatCard';
-import { TransactionList } from './transactions/TransactionList';
-import { CategoryGrid } from './categories/CategoryGrid';
-import { ContractList } from './contracts/ContractList';
-import { TabNavigation } from './common/TabNavigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authApi, dashboardApi } from '../services/api';
-import { BankAccounts } from './banking/BankAccounts';
+import { AccountGroups } from './banking/AccountGroups';
+import { GlassCard } from './common/GlassCard';
+import { TabNavigation } from './common/TabNavigation';
+import { BankingPage } from './banking/BankingPage';
 
-type Transaction = {
-    id: number;
-    description: string;
-    date: string;
-    amount: number;
-};
-
-type Category = {
+type BankAccount = {
+    id: string;
     name: string;
-    amount: number;
-};
-
-type Contract = {
-    id: number;
-    name: string;
-    category: 'income' | 'subscription' | 'insurance' | 'utility';
-    amount: number;
-    interval: 'monthly' | 'yearly' | 'quarterly';
-    nextPayment: string;
-    provider?: string;
+    mask: string;
+    type: string;
+    subtype: string;
+    balances: {
+        available: number;
+        current: number;
+        iso_currency_code: string;
+    };
 };
 
 type DashboardData = {
-    balance: number;
+    accounts: BankAccount[];
+    totalBalance: number;
+    monthlyIncome: number;
     monthlyExpenses: number;
-    savingsRate: number;
-    transactions: Transaction[];
-    categories: Category[];
-    contracts: Contract[];
+};
+
+type User = {
+    firstName: string;
+    lastName: string;
+    email: string;
 };
 
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState('overview');
-    const [user, setUser] = useState<any>(null);
+    const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(
         null
     );
-
-    useEffect(() => {
-        const currentUser = authApi.getCurrentUser();
-        setUser(currentUser);
-    }, []);
-
-    useEffect(() => {
-        const fetchDashboardData = async () => {
-            try {
-                setLoading(true);
-                const [overview, transactions, categories, contracts] =
-                    await Promise.all([
-                        dashboardApi.getOverview(),
-                        dashboardApi.getTransactions(),
-                        dashboardApi.getCategories(),
-                        dashboardApi.getContracts(),
-                    ]);
-
-                setDashboardData({
-                    balance: overview.balance,
-                    monthlyExpenses: overview.monthlyExpenses,
-                    savingsRate: overview.savingsRate,
-                    transactions,
-                    categories,
-                    contracts,
-                });
-            } catch (err) {
-                setError('Fehler beim Laden der Daten');
-                console.error('Dashboard Fehler:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchDashboardData();
-    }, []);
-
-    const handleLogout = () => {
-        authApi.logout();
-    };
 
     const tabs = [
         {
@@ -104,9 +57,9 @@ export default function Dashboard() {
             icon: <FiGrid className='w-4 h-4' />,
         },
         {
-            id: 'banking',
+            id: 'accounts',
             label: 'Bankkonten',
-            icon: <FiDatabase className='w-4 h-4' />,
+            icon: <FiCreditCard className='w-4 h-4' />,
         },
         {
             id: 'contracts',
@@ -115,28 +68,150 @@ export default function Dashboard() {
         },
     ];
 
-    const containerVariants = {
-        hidden: { opacity: 0 },
-        visible: {
-            opacity: 1,
-            transition: {
-                duration: 0.3,
-                staggerChildren: 0.1,
-            },
-        },
+    useEffect(() => {
+        const currentUser = authApi.getCurrentUser();
+        setUser(currentUser);
+    }, []);
+
+    const fetchDashboardData = async () => {
+        try {
+            setLoading(true);
+            const accounts: BankAccount[] = await dashboardApi.getAccounts();
+
+            const totalBalance = accounts.reduce(
+                (sum: number, account: BankAccount) =>
+                    sum + (account.balances.current || 0),
+                0
+            );
+
+            // TODO: Diese Werte sollten später aus der API kommen
+            const monthlyIncome = 5000;
+            const monthlyExpenses = 3500;
+
+            setDashboardData({
+                accounts,
+                totalBalance,
+                monthlyIncome,
+                monthlyExpenses,
+            });
+        } catch (err) {
+            setError('Fehler beim Laden der Daten');
+            console.error('Dashboard Fehler:', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const itemVariants = {
-        hidden: { y: 20, opacity: 0 },
-        visible: {
-            y: 0,
-            opacity: 1,
-            transition: {
-                type: 'spring',
-                stiffness: 100,
-                damping: 12,
-            },
-        },
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
+
+    const handleLogout = () => {
+        authApi.logout();
+    };
+
+    const renderOverview = () => {
+        if (!dashboardData) return null;
+        return (
+            <div className='space-y-8'>
+                {/* Übersichtskarten */}
+                <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+                    <GlassCard>
+                        <div className='flex items-center justify-between'>
+                            <div>
+                                <p className='text-sm text-gray-400'>
+                                    Gesamtvermögen
+                                </p>
+                                <p className='text-2xl font-bold text-white mt-1'>
+                                    {new Intl.NumberFormat('de-DE', {
+                                        style: 'currency',
+                                        currency: 'EUR',
+                                    }).format(dashboardData.totalBalance)}
+                                </p>
+                            </div>
+                            <div className='p-3 bg-blue-500/20 rounded-lg'>
+                                <FiDollarSign className='w-6 h-6 text-blue-400' />
+                            </div>
+                        </div>
+                    </GlassCard>
+
+                    <GlassCard>
+                        <div className='flex items-center justify-between'>
+                            <div>
+                                <p className='text-sm text-gray-400'>
+                                    Monatliche Einnahmen
+                                </p>
+                                <p className='text-2xl font-bold text-white mt-1'>
+                                    {new Intl.NumberFormat('de-DE', {
+                                        style: 'currency',
+                                        currency: 'EUR',
+                                    }).format(dashboardData.monthlyIncome)}
+                                </p>
+                            </div>
+                            <div className='p-3 bg-green-500/20 rounded-lg'>
+                                <FiTrendingUp className='w-6 h-6 text-green-400' />
+                            </div>
+                        </div>
+                    </GlassCard>
+
+                    <GlassCard>
+                        <div className='flex items-center justify-between'>
+                            <div>
+                                <p className='text-sm text-gray-400'>
+                                    Monatliche Ausgaben
+                                </p>
+                                <p className='text-2xl font-bold text-white mt-1'>
+                                    {new Intl.NumberFormat('de-DE', {
+                                        style: 'currency',
+                                        currency: 'EUR',
+                                    }).format(dashboardData.monthlyExpenses)}
+                                </p>
+                            </div>
+                            <div className='p-3 bg-red-500/20 rounded-lg'>
+                                <FiTrendingDown className='w-6 h-6 text-red-400' />
+                            </div>
+                        </div>
+                    </GlassCard>
+                </div>
+
+                {/* Kontenübersicht */}
+                <GlassCard>
+                    <div className='space-y-6'>
+                        <div className='flex items-center justify-between'>
+                            <h2 className='text-xl font-semibold text-white'>
+                                Kontenübersicht
+                            </h2>
+                            <div className='flex items-center space-x-2 text-gray-400'>
+                                <FiGrid className='w-5 h-5' />
+                                <span>
+                                    {dashboardData.accounts.length} Konten
+                                </span>
+                            </div>
+                        </div>
+                        <AccountGroups accounts={dashboardData.accounts} />
+                    </div>
+                </GlassCard>
+            </div>
+        );
+    };
+
+    const renderContracts = () => {
+        return (
+            <GlassCard>
+                <div className='space-y-6'>
+                    <div className='flex items-center justify-between'>
+                        <h2 className='text-xl font-semibold text-white'>
+                            Verträge
+                        </h2>
+                        <div className='flex items-center space-x-2 text-gray-400'>
+                            <FiFileText className='w-5 h-5' />
+                            <span>0 Verträge</span>
+                        </div>
+                    </div>
+                    <p className='text-gray-400'>Keine Verträge vorhanden</p>
+                </div>
+            </GlassCard>
+        );
     };
 
     if (loading) {
@@ -157,11 +232,12 @@ export default function Dashboard() {
 
     return (
         <div className='min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900'>
+            {/* Navigation */}
             <motion.nav
                 initial={{ y: -20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5 }}
-                className='backdrop-blur-md bg-black/30 border-b border-gray-800'
+                className='backdrop-blur-md bg-black/30 border-b border-gray-800 sticky top-0 z-50'
             >
                 <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                     <div className='flex justify-between items-center h-16'>
@@ -206,142 +282,36 @@ export default function Dashboard() {
                 </div>
             </motion.nav>
 
+            {/* Hauptinhalt */}
             <motion.main
-                initial='hidden'
-                animate='visible'
-                variants={containerVariants}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
                 className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'
             >
-                <motion.div variants={itemVariants}>
-                    <TabNavigation
-                        tabs={tabs}
-                        activeTab={activeTab}
-                        onTabChange={setActiveTab}
-                    />
-                </motion.div>
+                <TabNavigation
+                    tabs={tabs}
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
+                />
 
                 <AnimatePresence mode='wait'>
-                    {activeTab === 'overview' && dashboardData && (
-                        <motion.div
-                            key='overview'
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            transition={{ duration: 0.3 }}
-                        >
-                            <motion.div
-                                variants={containerVariants}
-                                className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-8'
-                            >
-                                <motion.div variants={itemVariants}>
-                                    <StatCard
-                                        icon={FiDollarSign}
-                                        iconBgColor='bg-blue-900/50'
-                                        iconColor='text-blue-400'
-                                        label='Kontostand'
-                                        value={`€${dashboardData.balance.toLocaleString(
-                                            'de-DE',
-                                            {
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                            }
-                                        )}`}
-                                    />
-                                </motion.div>
-                                <motion.div variants={itemVariants}>
-                                    <StatCard
-                                        icon={FiCreditCard}
-                                        iconBgColor='bg-green-900/50'
-                                        iconColor='text-green-400'
-                                        label='Monatliche Ausgaben'
-                                        value={`€${dashboardData.monthlyExpenses.toLocaleString(
-                                            'de-DE',
-                                            {
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                            }
-                                        )}`}
-                                    />
-                                </motion.div>
-                                <motion.div variants={itemVariants}>
-                                    <StatCard
-                                        icon={FiPieChart}
-                                        iconBgColor='bg-purple-900/50'
-                                        iconColor='text-purple-400'
-                                        label='Sparquote'
-                                        value={`${dashboardData.savingsRate}%`}
-                                    />
-                                </motion.div>
-                            </motion.div>
-
-                            <motion.div variants={itemVariants}>
-                                <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-                                    <div className='bg-black/30 backdrop-blur-md rounded-lg p-6 border border-gray-800'>
-                                        <h3 className='text-lg font-semibold text-white mb-4'>
-                                            Letzte Transaktionen
-                                        </h3>
-                                        <TransactionList
-                                            transactions={
-                                                dashboardData.transactions
-                                            }
-                                        />
-                                    </div>
-                                    <div className='bg-black/30 backdrop-blur-md rounded-lg p-6 border border-gray-800'>
-                                        <h3 className='text-lg font-semibold text-white mb-4'>
-                                            Ausgaben nach Kategorien
-                                        </h3>
-                                        <CategoryGrid
-                                            categories={
-                                                dashboardData.categories
-                                            }
-                                        />
-                                    </div>
-                                </div>
-                            </motion.div>
-
-                            <motion.div
-                                variants={itemVariants}
-                                className='mt-6'
-                            >
-                                <div className='bg-black/30 backdrop-blur-md rounded-lg p-6 border border-gray-800'>
-                                    <h3 className='text-lg font-semibold text-white mb-4'>
-                                        Aktive Verträge
-                                    </h3>
-                                    <ContractList
-                                        contracts={dashboardData.contracts}
-                                    />
-                                </div>
-                            </motion.div>
-                        </motion.div>
-                    )}
-
-                    {activeTab === 'banking' && (
-                        <motion.div
-                            key='banking'
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            transition={{ duration: 0.3 }}
-                        >
-                            <BankAccounts />
-                        </motion.div>
-                    )}
-
-                    {activeTab === 'contracts' && dashboardData && (
-                        <motion.div
-                            key='contracts'
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            transition={{ duration: 0.3 }}
-                            className='bg-black/30 backdrop-blur-md rounded-lg p-6 border border-gray-800'
-                        >
-                            <ContractList
-                                contracts={dashboardData.contracts}
-                                fullWidth
+                    <motion.div
+                        key={activeTab}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        {activeTab === 'overview' && renderOverview()}
+                        {activeTab === 'accounts' && dashboardData && (
+                            <BankingPage
+                                accounts={dashboardData.accounts}
+                                onAccountsUpdate={fetchDashboardData}
                             />
-                        </motion.div>
-                    )}
+                        )}
+                        {activeTab === 'contracts' && renderContracts()}
+                    </motion.div>
                 </AnimatePresence>
             </motion.main>
         </div>

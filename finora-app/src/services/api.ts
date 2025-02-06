@@ -88,24 +88,25 @@ export const authApi = {
 };
 
 export const dashboardApi = {
-    async getOverview() {
+    getOverview: async () => {
         const response = await api.get('/plaid/dashboard/overview');
         return response.data;
     },
-
-    async getTransactions() {
+    getTransactions: async () => {
         const response = await api.get('/plaid/transactions');
         return response.data;
     },
-
-    async getCategories() {
+    getCategories: async () => {
         const response = await api.get('/plaid/categories');
         return response.data;
     },
-
-    async getContracts() {
+    getContracts: async () => {
         const response = await api.get('/plaid/contracts');
         return response.data;
+    },
+    getAccounts: async () => {
+        const response = await api.get('/plaid/accounts');
+        return response.data.accounts;
     },
 };
 
