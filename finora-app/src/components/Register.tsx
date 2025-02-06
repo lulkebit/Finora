@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard } from './common/GlassCard';
 import { useNavigate } from 'react-router-dom';
@@ -82,6 +82,329 @@ const RISK_TOLERANCE_OPTIONS = [
     'Spekulativ',
 ];
 
+const MemoizedGlassCard = memo(GlassCard);
+
+const LoadingSpinner = memo(() => (
+    <div className='w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin' />
+));
+
+const InputField = memo(
+    ({
+        label,
+        name,
+        type,
+        value,
+        onChange,
+        icon: Icon,
+        placeholder,
+        required = true,
+    }: {
+        label: string;
+        name: string;
+        type: string;
+        value: string;
+        onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+        icon: React.ComponentType<any>;
+        placeholder: string;
+        required?: boolean;
+    }) => (
+        <div className='space-y-2'>
+            <label className='block text-sm font-medium text-gray-200'>
+                {label}
+            </label>
+            <div className='relative'>
+                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
+                    <Icon className='h-5 w-5 text-gray-500' />
+                </div>
+                <motion.input
+                    whileFocus={{ scale: 1.01 }}
+                    type={type}
+                    name={name}
+                    value={value}
+                    onChange={onChange}
+                    required={required}
+                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
+                    placeholder={placeholder}
+                />
+            </div>
+        </div>
+    )
+);
+
+const SelectField = memo(
+    ({
+        label,
+        name,
+        value,
+        onChange,
+        options,
+        icon: Icon,
+    }: {
+        label: string;
+        name: string;
+        value: string;
+        onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+        options: string[];
+        icon: React.ComponentType<any>;
+    }) => (
+        <div className='space-y-2'>
+            <label className='block text-sm font-medium text-gray-200'>
+                {label}
+            </label>
+            <div className='relative'>
+                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
+                    <Icon className='h-5 w-5 text-gray-500' />
+                </div>
+                <select
+                    name={name}
+                    value={value}
+                    onChange={onChange}
+                    required
+                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white appearance-none'
+                >
+                    <option value=''>Bitte wählen</option>
+                    {options.map((option) => (
+                        <option key={option} value={option}>
+                            {option}
+                        </option>
+                    ))}
+                </select>
+            </div>
+        </div>
+    )
+);
+
+const StepIndicator = memo(
+    ({
+        currentStep,
+        steps,
+    }: {
+        currentStep: RegisterStep;
+        steps: Record<RegisterStep, StepConfig>;
+    }) => (
+        <div className='flex items-center justify-between mb-8'>
+            {Object.entries(steps).map(([step, config], index) => (
+                <div
+                    key={step}
+                    className={`flex items-center ${
+                        index < Object.keys(steps).length - 1 ? 'flex-1' : ''
+                    }`}
+                >
+                    <div
+                        className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                            step === currentStep
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-700 text-gray-400'
+                        }`}
+                    >
+                        {config.icon}
+                    </div>
+                    {index < Object.keys(steps).length - 1 && (
+                        <div
+                            className={`flex-1 h-0.5 mx-2 ${
+                                Object.keys(steps).indexOf(currentStep) > index
+                                    ? 'bg-blue-500'
+                                    : 'bg-gray-700'
+                            }`}
+                        />
+                    )}
+                </div>
+            ))}
+        </div>
+    )
+);
+
+const StepContent = memo(
+    ({
+        step,
+        config,
+        formData,
+        onChange,
+    }: {
+        step: RegisterStep;
+        config: StepConfig;
+        formData: RegisterFormData;
+        onChange: (
+            e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+        ) => void;
+    }) => {
+        const content = useMemo(() => {
+            switch (step) {
+                case 'account':
+                    return (
+                        <>
+                            <InputField
+                                label='E-Mail'
+                                name='email'
+                                type='email'
+                                value={formData.email}
+                                onChange={onChange}
+                                icon={FiMail}
+                                placeholder='ihre@email.de'
+                            />
+                            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                                <InputField
+                                    label='Passwort'
+                                    name='password'
+                                    type='password'
+                                    value={formData.password}
+                                    onChange={onChange}
+                                    icon={FiLock}
+                                    placeholder='••••••••'
+                                />
+                                <InputField
+                                    label='Passwort bestätigen'
+                                    name='confirmPassword'
+                                    type='password'
+                                    value={formData.confirmPassword}
+                                    onChange={onChange}
+                                    icon={FiLock}
+                                    placeholder='••••••••'
+                                />
+                            </div>
+                        </>
+                    );
+                case 'personal':
+                    return (
+                        <>
+                            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                                <InputField
+                                    label='Vorname'
+                                    name='firstName'
+                                    type='text'
+                                    value={formData.firstName}
+                                    onChange={onChange}
+                                    icon={FiUser}
+                                    placeholder='Max'
+                                />
+                                <InputField
+                                    label='Nachname'
+                                    name='lastName'
+                                    type='text'
+                                    value={formData.lastName}
+                                    onChange={onChange}
+                                    icon={FiUser}
+                                    placeholder='Mustermann'
+                                />
+                            </div>
+                            <InputField
+                                label='Geburtsdatum'
+                                name='dateOfBirth'
+                                type='date'
+                                value={formData.dateOfBirth}
+                                onChange={onChange}
+                                icon={FiCalendar}
+                                placeholder=''
+                            />
+                        </>
+                    );
+                case 'financial':
+                    return (
+                        <>
+                            <SelectField
+                                label='Beschäftigungsstatus'
+                                name='employmentStatus'
+                                value={formData.employmentStatus}
+                                onChange={onChange}
+                                options={EMPLOYMENT_STATUS_OPTIONS}
+                                icon={FiBriefcase}
+                            />
+                            <InputField
+                                label='Monatliches Einkommen (€)'
+                                name='monthlyIncome'
+                                type='number'
+                                value={formData.monthlyIncome}
+                                onChange={onChange}
+                                icon={FiDollarSign}
+                                placeholder='0'
+                            />
+                        </>
+                    );
+                case 'goals':
+                    return (
+                        <>
+                            <InputField
+                                label='Monatliches Sparziel (€)'
+                                name='savingsGoal'
+                                type='number'
+                                value={formData.savingsGoal}
+                                onChange={onChange}
+                                icon={FiTarget}
+                                placeholder='0'
+                            />
+                            <SelectField
+                                label='Risikobereitschaft'
+                                name='riskTolerance'
+                                value={formData.riskTolerance}
+                                onChange={onChange}
+                                options={RISK_TOLERANCE_OPTIONS}
+                                icon={FiShield}
+                            />
+                        </>
+                    );
+            }
+        }, [step, formData, onChange]);
+
+        return (
+            <motion.div
+                key={step}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className='space-y-4'
+            >
+                {content}
+            </motion.div>
+        );
+    }
+);
+
+const NavigationButtons = memo(
+    ({
+        currentStep,
+        isLoading,
+        onBack,
+        onNext,
+        onSubmit,
+    }: {
+        currentStep: RegisterStep;
+        isLoading: boolean;
+        onBack: () => void;
+        onNext: () => void;
+        onSubmit: (e: React.FormEvent) => void;
+    }) => (
+        <div className='flex justify-between mt-8'>
+            {currentStep !== 'account' && (
+                <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={onBack}
+                    className='flex items-center px-6 py-2 bg-gray-800/50 text-gray-300 rounded-lg hover:bg-gray-700/50 transition-colors'
+                >
+                    <FiArrowLeft className='mr-2' />
+                    Zurück
+                </motion.button>
+            )}
+            <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={currentStep === 'goals' ? onSubmit : onNext}
+                disabled={isLoading}
+                className='flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ml-auto disabled:opacity-50 disabled:cursor-not-allowed'
+            >
+                {isLoading ? (
+                    <LoadingSpinner />
+                ) : (
+                    <>
+                        {currentStep === 'goals' ? 'Registrieren' : 'Weiter'}
+                        <FiArrowRight className='ml-2' />
+                    </>
+                )}
+            </motion.button>
+        </div>
+    )
+);
+
 export default function Register() {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
@@ -99,17 +422,18 @@ export default function Register() {
         riskTolerance: '',
     });
 
-    const handleChange = (
-        e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-    ) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
-    };
+    const handleChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+            const { name, value } = e.target;
+            setFormData((prev) => ({
+                ...prev,
+                [name]: value,
+            }));
+        },
+        []
+    );
 
-    const validateStep = () => {
+    const validateStep = useCallback(() => {
         switch (currentStep) {
             case 'account':
                 if (
@@ -160,9 +484,9 @@ export default function Register() {
             default:
                 return true;
         }
-    };
+    }, [formData, currentStep]);
 
-    const handleNext = () => {
+    const handleNext = useCallback(() => {
         if (!validateStep()) return;
 
         const steps: RegisterStep[] = [
@@ -175,9 +499,9 @@ export default function Register() {
         if (currentIndex < steps.length - 1) {
             setCurrentStep(steps[currentIndex + 1]);
         }
-    };
+    }, [currentStep, validateStep]);
 
-    const handleBack = () => {
+    const handleBack = useCallback(() => {
         const steps: RegisterStep[] = [
             'account',
             'personal',
@@ -188,302 +512,34 @@ export default function Register() {
         if (currentIndex > 0) {
             setCurrentStep(steps[currentIndex - 1]);
         }
-    };
+    }, [currentStep]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!validateStep()) return;
+    const handleSubmit = useCallback(
+        async (e: React.FormEvent) => {
+            e.preventDefault();
+            if (!validateStep()) return;
 
-        setIsLoading(true);
-        try {
-            const { confirmPassword: _, ...registrationData } = formData;
-            await authApi.register({
-                ...registrationData,
-                monthlyIncome: parseFloat(registrationData.monthlyIncome),
-                savingsGoal: parseFloat(registrationData.savingsGoal),
-            });
-            toast.success('Registrierung erfolgreich');
-            navigate('/');
-        } catch (error) {
-            const err = error as AxiosError<ApiError>;
-            toast.error(
-                err.response?.data?.error || 'Ein Fehler ist aufgetreten'
-            );
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const renderStepContent = () => {
-        switch (currentStep) {
-            case 'account':
-                return (
-                    <motion.div
-                        key='account'
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        className='space-y-4'
-                    >
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                E-Mail
-                            </label>
-                            <div className='relative'>
-                                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
-                                    <FiMail className='h-5 w-5 text-gray-500' />
-                                </div>
-                                <input
-                                    type='email'
-                                    name='email'
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                    required
-                                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
-                                    placeholder='ihre@email.de'
-                                />
-                            </div>
-                        </div>
-
-                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                            <div className='space-y-2'>
-                                <label className='block text-sm font-medium text-gray-200'>
-                                    Passwort
-                                </label>
-                                <div className='relative'>
-                                    <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
-                                        <FiLock className='h-5 w-5 text-gray-500' />
-                                    </div>
-                                    <input
-                                        type='password'
-                                        name='password'
-                                        value={formData.password}
-                                        onChange={handleChange}
-                                        required
-                                        minLength={8}
-                                        className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
-                                        placeholder='••••••••'
-                                    />
-                                </div>
-                            </div>
-
-                            <div className='space-y-2'>
-                                <label className='block text-sm font-medium text-gray-200'>
-                                    Passwort bestätigen
-                                </label>
-                                <div className='relative'>
-                                    <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
-                                        <FiLock className='h-5 w-5 text-gray-500' />
-                                    </div>
-                                    <input
-                                        type='password'
-                                        name='confirmPassword'
-                                        value={formData.confirmPassword}
-                                        onChange={handleChange}
-                                        required
-                                        className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
-                                        placeholder='••••••••'
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </motion.div>
+            setIsLoading(true);
+            try {
+                const { confirmPassword: _, ...registrationData } = formData;
+                await authApi.register({
+                    ...registrationData,
+                    monthlyIncome: parseFloat(registrationData.monthlyIncome),
+                    savingsGoal: parseFloat(registrationData.savingsGoal),
+                });
+                toast.success('Registrierung erfolgreich');
+                navigate('/');
+            } catch (error) {
+                const err = error as AxiosError<ApiError>;
+                toast.error(
+                    err.response?.data?.error || 'Ein Fehler ist aufgetreten'
                 );
-
-            case 'personal':
-                return (
-                    <motion.div
-                        key='personal'
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        className='space-y-4'
-                    >
-                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                            <div className='space-y-2'>
-                                <label className='block text-sm font-medium text-gray-200'>
-                                    Vorname
-                                </label>
-                                <div className='relative'>
-                                    <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
-                                        <FiUser className='h-5 w-5 text-gray-500' />
-                                    </div>
-                                    <input
-                                        type='text'
-                                        name='firstName'
-                                        value={formData.firstName}
-                                        onChange={handleChange}
-                                        required
-                                        className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
-                                    />
-                                </div>
-                            </div>
-
-                            <div className='space-y-2'>
-                                <label className='block text-sm font-medium text-gray-200'>
-                                    Nachname
-                                </label>
-                                <div className='relative'>
-                                    <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
-                                        <FiUser className='h-5 w-5 text-gray-500' />
-                                    </div>
-                                    <input
-                                        type='text'
-                                        name='lastName'
-                                        value={formData.lastName}
-                                        onChange={handleChange}
-                                        required
-                                        className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                Geburtsdatum
-                            </label>
-                            <div className='relative'>
-                                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
-                                    <FiCalendar className='h-5 w-5 text-gray-500' />
-                                </div>
-                                <input
-                                    type='date'
-                                    name='dateOfBirth'
-                                    value={formData.dateOfBirth}
-                                    onChange={handleChange}
-                                    required
-                                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
-                                />
-                            </div>
-                        </div>
-                    </motion.div>
-                );
-
-            case 'financial':
-                return (
-                    <motion.div
-                        key='financial'
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        className='space-y-4'
-                    >
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                Beschäftigungsstatus
-                            </label>
-                            <div className='relative'>
-                                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
-                                    <FiBriefcase className='h-5 w-5 text-gray-500' />
-                                </div>
-                                <select
-                                    name='employmentStatus'
-                                    value={formData.employmentStatus}
-                                    onChange={handleChange}
-                                    required
-                                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
-                                >
-                                    <option value=''>Bitte wählen</option>
-                                    {EMPLOYMENT_STATUS_OPTIONS.map((status) => (
-                                        <option key={status} value={status}>
-                                            {status}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                Monatliches Einkommen
-                            </label>
-                            <div className='relative'>
-                                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
-                                    <FiDollarSign className='h-5 w-5 text-gray-500' />
-                                </div>
-                                <input
-                                    type='number'
-                                    name='monthlyIncome'
-                                    value={formData.monthlyIncome}
-                                    onChange={handleChange}
-                                    required
-                                    min='0'
-                                    step='0.01'
-                                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
-                                />
-                            </div>
-                        </div>
-                    </motion.div>
-                );
-
-            case 'goals':
-                return (
-                    <motion.div
-                        key='goals'
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        className='space-y-4'
-                    >
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                Monatliches Sparziel
-                            </label>
-                            <div className='relative'>
-                                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
-                                    <FiTarget className='h-5 w-5 text-gray-500' />
-                                </div>
-                                <input
-                                    type='number'
-                                    name='savingsGoal'
-                                    value={formData.savingsGoal}
-                                    onChange={handleChange}
-                                    required
-                                    min='0'
-                                    step='0.01'
-                                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
-                                />
-                            </div>
-                        </div>
-
-                        <div className='space-y-2'>
-                            <label className='block text-sm font-medium text-gray-200'>
-                                Risikobereitschaft
-                            </label>
-                            <div className='relative'>
-                                <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
-                                    <FiTarget className='h-5 w-5 text-gray-500' />
-                                </div>
-                                <select
-                                    name='riskTolerance'
-                                    value={formData.riskTolerance}
-                                    onChange={handleChange}
-                                    required
-                                    className='w-full pl-10 px-4 py-2 bg-black/30 border border-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white'
-                                >
-                                    <option value=''>Bitte wählen</option>
-                                    {RISK_TOLERANCE_OPTIONS.map((option) => (
-                                        <option key={option} value={option}>
-                                            {option}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    </motion.div>
-                );
-        }
-    };
-
-    const steps = [
-        'account',
-        'personal',
-        'financial',
-        'goals',
-    ] as RegisterStep[];
-    const currentStepIndex = steps.indexOf(currentStep);
-    const progress = ((currentStepIndex + 1) / steps.length) * 100;
+            } finally {
+                setIsLoading(false);
+            }
+        },
+        [formData, validateStep, navigate]
+    );
 
     return (
         <div className='min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900'>
@@ -515,149 +571,37 @@ export default function Register() {
             </motion.nav>
 
             <div className='max-w-2xl mx-auto px-4 py-8'>
-                <motion.div
-                    initial='hidden'
-                    animate='visible'
-                    variants={{
-                        hidden: { opacity: 0 },
-                        visible: { opacity: 1 },
-                    }}
-                >
-                    <GlassCard className='backdrop-blur-md bg-black/30'>
-                        {/* Logo */}
-                        <div className='flex flex-col items-center mb-8'>
-                            <motion.div
-                                initial={{ scale: 0.5, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ duration: 0.5 }}
-                            >
-                                <img
-                                    src='/logo.svg'
-                                    alt='Finora'
-                                    className='h-16 w-16 mb-4'
-                                />
-                            </motion.div>
-                            <motion.div
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                transition={{ delay: 0.2, duration: 0.5 }}
-                                className='text-center'
-                            >
-                                <h1 className='text-2xl font-bold text-white mb-2'>
-                                    Willkommen bei Finora
-                                </h1>
-                                <p className='text-gray-400'>
-                                    Ihr Weg zu intelligenter Finanzverwaltung
-                                </p>
-                            </motion.div>
-                        </div>
+                <MemoizedGlassCard>
+                    <StepIndicator currentStep={currentStep} steps={STEPS} />
 
-                        {/* Progress Bar */}
-                        <div className='mb-8'>
-                            <div className='flex justify-between items-center mb-2'>
-                                <div className='flex items-center space-x-3'>
-                                    {STEPS[currentStep].icon}
-                                    <div>
-                                        <h2 className='text-lg font-semibold text-white'>
-                                            {STEPS[currentStep].title}
-                                        </h2>
-                                        <p className='text-sm text-gray-400'>
-                                            {STEPS[currentStep].description}
-                                        </p>
-                                    </div>
-                                </div>
-                                <span className='text-sm text-gray-400'>
-                                    Schritt {currentStepIndex + 1} von{' '}
-                                    {steps.length}
-                                </span>
-                            </div>
-                            <div className='h-2 bg-gray-800 rounded-full overflow-hidden'>
-                                <motion.div
-                                    className='h-full bg-blue-500'
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${progress}%` }}
-                                    transition={{ duration: 0.3 }}
-                                />
-                            </div>
-                        </div>
+                    <div className='text-center mb-8'>
+                        <h2 className='text-2xl font-bold text-white'>
+                            {STEPS[currentStep].title}
+                        </h2>
+                        <p className='text-gray-400 mt-1'>
+                            {STEPS[currentStep].description}
+                        </p>
+                    </div>
 
-                        <form
-                            onSubmit={
-                                currentStep === 'goals'
-                                    ? handleSubmit
-                                    : (e) => {
-                                          e.preventDefault();
-                                          handleNext();
-                                      }
-                            }
-                        >
-                            <AnimatePresence mode='wait'>
-                                {renderStepContent()}
-                            </AnimatePresence>
+                    <form onSubmit={(e) => e.preventDefault()}>
+                        <AnimatePresence mode='wait'>
+                            <StepContent
+                                step={currentStep}
+                                config={STEPS[currentStep]}
+                                formData={formData}
+                                onChange={handleChange}
+                            />
+                        </AnimatePresence>
 
-                            <div className='flex justify-between mt-8'>
-                                {currentStepIndex > 0 && (
-                                    <motion.button
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        type='button'
-                                        onClick={handleBack}
-                                        className='flex items-center px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors'
-                                    >
-                                        <FiArrowLeft className='mr-2' />
-                                        Zurück
-                                    </motion.button>
-                                )}
-
-                                <motion.button
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    type={
-                                        currentStep === 'goals'
-                                            ? 'submit'
-                                            : 'button'
-                                    }
-                                    onClick={
-                                        currentStep === 'goals'
-                                            ? undefined
-                                            : handleNext
-                                    }
-                                    disabled={isLoading}
-                                    className='flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ml-auto'
-                                >
-                                    {isLoading ? (
-                                        <div className='w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin' />
-                                    ) : (
-                                        <>
-                                            {currentStep === 'goals'
-                                                ? 'Registrierung abschließen'
-                                                : 'Weiter'}
-                                            <FiArrowRight className='ml-2' />
-                                        </>
-                                    )}
-                                </motion.button>
-                            </div>
-                        </form>
-
-                        <motion.div
-                            variants={{
-                                hidden: { opacity: 0, y: 20 },
-                                visible: { opacity: 1, y: 0 },
-                            }}
-                            className='text-center text-gray-300 mt-6'
-                        >
-                            <span>Bereits ein Konto? </span>
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => navigate('/login')}
-                                className='text-blue-400 hover:text-blue-300 font-medium transition-colors'
-                            >
-                                Jetzt anmelden
-                            </motion.button>
-                        </motion.div>
-                    </GlassCard>
-                </motion.div>
+                        <NavigationButtons
+                            currentStep={currentStep}
+                            isLoading={isLoading}
+                            onBack={handleBack}
+                            onNext={handleNext}
+                            onSubmit={handleSubmit}
+                        />
+                    </form>
+                </MemoizedGlassCard>
             </div>
         </div>
     );

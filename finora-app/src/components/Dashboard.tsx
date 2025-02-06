@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import {
     FiLogOut,
     FiDollarSign,
@@ -41,6 +41,33 @@ type User = {
     email: string;
 };
 
+const MemoizedGlassCard = memo(GlassCard);
+const MemoizedAccountGroups = memo(AccountGroups);
+
+const StatCard = memo(
+    ({
+        title,
+        value,
+        icon,
+    }: {
+        title: string;
+        value: string;
+        icon: React.ReactNode;
+    }) => (
+        <MemoizedGlassCard>
+            <div className='flex items-center justify-between'>
+                <div>
+                    <p className='text-sm text-gray-400'>{title}</p>
+                    <p className='text-2xl font-bold text-white mt-1'>
+                        {value}
+                    </p>
+                </div>
+                <div className='p-3 bg-blue-500/20 rounded-lg'>{icon}</div>
+            </div>
+        </MemoizedGlassCard>
+    )
+);
+
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState('overview');
     const [user, setUser] = useState<User | null>(null);
@@ -50,30 +77,33 @@ export default function Dashboard() {
         null
     );
 
-    const tabs = [
-        {
-            id: 'overview',
-            label: 'Übersicht',
-            icon: <FiGrid className='w-4 h-4' />,
-        },
-        {
-            id: 'accounts',
-            label: 'Bankkonten',
-            icon: <FiCreditCard className='w-4 h-4' />,
-        },
-        {
-            id: 'contracts',
-            label: 'Verträge',
-            icon: <FiFileText className='w-4 h-4' />,
-        },
-    ];
+    const tabs = useMemo(
+        () => [
+            {
+                id: 'overview',
+                label: 'Übersicht',
+                icon: <FiGrid className='w-4 h-4' />,
+            },
+            {
+                id: 'accounts',
+                label: 'Bankkonten',
+                icon: <FiCreditCard className='w-4 h-4' />,
+            },
+            {
+                id: 'contracts',
+                label: 'Verträge',
+                icon: <FiFileText className='w-4 h-4' />,
+            },
+        ],
+        []
+    );
 
     useEffect(() => {
         const currentUser = authApi.getCurrentUser();
         setUser(currentUser);
     }, []);
 
-    const fetchDashboardData = async () => {
+    const fetchDashboardData = useCallback(async () => {
         try {
             setLoading(true);
             const accounts: BankAccount[] = await dashboardApi.getAccounts();
@@ -84,7 +114,6 @@ export default function Dashboard() {
                 0
             );
 
-            // TODO: Diese Werte sollten später aus der API kommen
             const monthlyIncome = 5000;
             const monthlyExpenses = 3500;
 
@@ -100,82 +129,52 @@ export default function Dashboard() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchDashboardData();
+    }, [fetchDashboardData]);
+
+    const handleLogout = useCallback(() => {
+        authApi.logout();
     }, []);
 
-    const handleLogout = () => {
-        authApi.logout();
-    };
+    const formatCurrency = useCallback((value: number) => {
+        return new Intl.NumberFormat('de-DE', {
+            style: 'currency',
+            currency: 'EUR',
+        }).format(value);
+    }, []);
 
-    const renderOverview = () => {
+    const renderOverview = useCallback(() => {
         if (!dashboardData) return null;
         return (
             <div className='space-y-8'>
-                {/* Übersichtskarten */}
                 <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-                    <GlassCard>
-                        <div className='flex items-center justify-between'>
-                            <div>
-                                <p className='text-sm text-gray-400'>
-                                    Gesamtvermögen
-                                </p>
-                                <p className='text-2xl font-bold text-white mt-1'>
-                                    {new Intl.NumberFormat('de-DE', {
-                                        style: 'currency',
-                                        currency: 'EUR',
-                                    }).format(dashboardData.totalBalance)}
-                                </p>
-                            </div>
-                            <div className='p-3 bg-blue-500/20 rounded-lg'>
-                                <FiDollarSign className='w-6 h-6 text-blue-400' />
-                            </div>
-                        </div>
-                    </GlassCard>
-
-                    <GlassCard>
-                        <div className='flex items-center justify-between'>
-                            <div>
-                                <p className='text-sm text-gray-400'>
-                                    Monatliche Einnahmen
-                                </p>
-                                <p className='text-2xl font-bold text-white mt-1'>
-                                    {new Intl.NumberFormat('de-DE', {
-                                        style: 'currency',
-                                        currency: 'EUR',
-                                    }).format(dashboardData.monthlyIncome)}
-                                </p>
-                            </div>
-                            <div className='p-3 bg-green-500/20 rounded-lg'>
-                                <FiTrendingUp className='w-6 h-6 text-green-400' />
-                            </div>
-                        </div>
-                    </GlassCard>
-
-                    <GlassCard>
-                        <div className='flex items-center justify-between'>
-                            <div>
-                                <p className='text-sm text-gray-400'>
-                                    Monatliche Ausgaben
-                                </p>
-                                <p className='text-2xl font-bold text-white mt-1'>
-                                    {new Intl.NumberFormat('de-DE', {
-                                        style: 'currency',
-                                        currency: 'EUR',
-                                    }).format(dashboardData.monthlyExpenses)}
-                                </p>
-                            </div>
-                            <div className='p-3 bg-red-500/20 rounded-lg'>
-                                <FiTrendingDown className='w-6 h-6 text-red-400' />
-                            </div>
-                        </div>
-                    </GlassCard>
+                    <StatCard
+                        title='Gesamtvermögen'
+                        value={formatCurrency(dashboardData.totalBalance)}
+                        icon={
+                            <FiDollarSign className='w-6 h-6 text-blue-400' />
+                        }
+                    />
+                    <StatCard
+                        title='Monatliche Einnahmen'
+                        value={formatCurrency(dashboardData.monthlyIncome)}
+                        icon={
+                            <FiTrendingUp className='w-6 h-6 text-green-400' />
+                        }
+                    />
+                    <StatCard
+                        title='Monatliche Ausgaben'
+                        value={formatCurrency(dashboardData.monthlyExpenses)}
+                        icon={
+                            <FiTrendingDown className='w-6 h-6 text-red-400' />
+                        }
+                    />
                 </div>
 
-                {/* Kontenübersicht */}
-                <GlassCard>
+                <MemoizedGlassCard>
                     <div className='space-y-6'>
                         <div className='flex items-center justify-between'>
                             <h2 className='text-xl font-semibold text-white'>
@@ -188,16 +187,18 @@ export default function Dashboard() {
                                 </span>
                             </div>
                         </div>
-                        <AccountGroups accounts={dashboardData.accounts} />
+                        <MemoizedAccountGroups
+                            accounts={dashboardData.accounts}
+                        />
                     </div>
-                </GlassCard>
+                </MemoizedGlassCard>
             </div>
         );
-    };
+    }, [dashboardData, formatCurrency]);
 
     const renderContracts = () => {
         return (
-            <GlassCard>
+            <MemoizedGlassCard>
                 <div className='space-y-6'>
                     <div className='flex items-center justify-between'>
                         <h2 className='text-xl font-semibold text-white'>
@@ -210,7 +211,7 @@ export default function Dashboard() {
                     </div>
                     <p className='text-gray-400'>Keine Verträge vorhanden</p>
                 </div>
-            </GlassCard>
+            </MemoizedGlassCard>
         );
     };
 
