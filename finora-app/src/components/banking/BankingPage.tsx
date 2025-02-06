@@ -12,6 +12,7 @@ import {
 import { GlassCard } from '../common/GlassCard';
 import { AccountGroups } from './AccountGroups';
 import PlaidLink from '../PlaidLink';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import axios from 'axios';
 
 type BankAccount = {
@@ -75,6 +76,7 @@ export const BankingPage: React.FC<BankingPageProps> = memo(
         const [needsPlaidSetup, setNeedsPlaidSetup] = useState(
             accounts.length === 0
         );
+        const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
         const handlePlaidSuccess = useCallback(async () => {
             try {
@@ -100,14 +102,11 @@ export const BankingPage: React.FC<BankingPageProps> = memo(
         }, [onAccountsUpdate]);
 
         const handleRemoveAccounts = async () => {
-            if (
-                !window.confirm(
-                    'Möchten Sie wirklich alle verknüpften Bankkonten entfernen?'
-                )
-            ) {
-                return;
-            }
+            setShowConfirmDialog(true);
+        };
 
+        const handleConfirmRemove = async () => {
+            setShowConfirmDialog(false);
             setIsRemoving(true);
             try {
                 const token = localStorage.getItem('token');
@@ -171,6 +170,15 @@ export const BankingPage: React.FC<BankingPageProps> = memo(
 
         return (
             <div className='space-y-6'>
+                <ConfirmDialog
+                    isOpen={showConfirmDialog}
+                    title='Bankkonten entfernen'
+                    message='Möchten Sie wirklich alle verknüpften Bankkonten entfernen? Diese Aktion kann nicht rückgängig gemacht werden.'
+                    confirmText='Ja, entfernen'
+                    cancelText='Abbrechen'
+                    onConfirm={handleConfirmRemove}
+                    onCancel={() => setShowConfirmDialog(false)}
+                />
                 <MemoizedGlassCard>
                     <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
                         <StatsCard

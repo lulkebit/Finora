@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiCreditCard, FiTrash2 } from 'react-icons/fi';
 import { SiDeutschebank, SiSparkasse } from 'react-icons/si';
 import { BsBank2 } from 'react-icons/bs';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import axios from 'axios';
 
 interface BankAccount {
@@ -48,20 +49,18 @@ const AccountItem = memo(
         onAccountsUpdate: () => Promise<void>;
     }) => {
         const [isRemoving, setIsRemoving] = useState(false);
+        const [showConfirmDialog, setShowConfirmDialog] = useState(false);
         const BankIcon = useMemo(
             () => getBankIcon(account.name),
             [account.name]
         );
 
         const handleRemoveAccount = async () => {
-            if (
-                !window.confirm(
-                    `Möchten Sie das Konto "${account.name}" wirklich entfernen?`
-                )
-            ) {
-                return;
-            }
+            setShowConfirmDialog(true);
+        };
 
+        const handleConfirmRemove = async () => {
+            setShowConfirmDialog(false);
             setIsRemoving(true);
             try {
                 const token = localStorage.getItem('token');
@@ -97,48 +96,59 @@ const AccountItem = memo(
         );
 
         return (
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className='p-4 bg-black/20 backdrop-blur-sm rounded-lg border border-gray-700/50'
-            >
-                <div className='flex justify-between items-center'>
-                    <div className='flex items-center space-x-3'>
-                        <div className='p-2 bg-gray-700/50 rounded-lg'>
-                            <BankIcon className='w-5 h-5 text-blue-400' />
+            <>
+                <ConfirmDialog
+                    isOpen={showConfirmDialog}
+                    title='Konto entfernen'
+                    message={`Möchten Sie das Konto "${account.name}" wirklich entfernen? Diese Aktion kann nicht rückgängig gemacht werden.`}
+                    confirmText='Ja, entfernen'
+                    cancelText='Abbrechen'
+                    onConfirm={handleConfirmRemove}
+                    onCancel={() => setShowConfirmDialog(false)}
+                />
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className='p-4 bg-black/20 backdrop-blur-sm rounded-lg border border-gray-700/50'
+                >
+                    <div className='flex justify-between items-center'>
+                        <div className='flex items-center space-x-3'>
+                            <div className='p-2 bg-gray-700/50 rounded-lg'>
+                                <BankIcon className='w-5 h-5 text-blue-400' />
+                            </div>
+                            <div>
+                                <p className='text-white font-medium'>
+                                    {account.name}
+                                </p>
+                                <p className='text-sm text-gray-400'>
+                                    ****{account.mask}
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <p className='text-white font-medium'>
-                                {account.name}
-                            </p>
-                            <p className='text-sm text-gray-400'>
-                                ****{account.mask}
-                            </p>
+                        <div className='flex items-center space-x-4'>
+                            <div className='text-right'>
+                                <p className='text-white font-medium'>
+                                    {formattedCurrentBalance}
+                                </p>
+                                <p className='text-sm text-gray-400'>
+                                    Verfügbar: {formattedAvailableBalance}
+                                </p>
+                            </div>
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={handleRemoveAccount}
+                                disabled={isRemoving}
+                                className='p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50'
+                                title='Konto entfernen'
+                            >
+                                <FiTrash2 className='w-5 h-5' />
+                            </motion.button>
                         </div>
                     </div>
-                    <div className='flex items-center space-x-4'>
-                        <div className='text-right'>
-                            <p className='text-white font-medium'>
-                                {formattedCurrentBalance}
-                            </p>
-                            <p className='text-sm text-gray-400'>
-                                Verfügbar: {formattedAvailableBalance}
-                            </p>
-                        </div>
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={handleRemoveAccount}
-                            disabled={isRemoving}
-                            className='p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50'
-                            title='Konto entfernen'
-                        >
-                            <FiTrash2 className='w-5 h-5' />
-                        </motion.button>
-                    </div>
-                </div>
-            </motion.div>
+                </motion.div>
+            </>
         );
     }
 );
