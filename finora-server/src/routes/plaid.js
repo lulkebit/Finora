@@ -307,4 +307,50 @@ router.get('/contracts', verifyToken, async (req, res) => {
     }
 });
 
+// Route zum Entfernen eines einzelnen Bankkontos
+router.delete('/unlink-account/:accountId', verifyToken, async (req, res) => {
+    try {
+        const { accountId } = req.params;
+        const result = await db.query(
+            'SELECT plaid_access_token FROM users WHERE id = $1',
+            [req.user.id]
+        );
+
+        if (!result.rows[0]?.plaid_access_token) {
+            return res.status(400).json({
+                error: 'Kein Plaid Access-Token gefunden.',
+            });
+        }
+
+        const accessToken = result.rows[0].plaid_access_token;
+
+        // Hole aktuelle Konten
+        const accountsResponse = await client.accountsGet({
+            access_token: accessToken,
+        });
+
+        // Prüfe ob das Konto existiert
+        const accountExists = accountsResponse.data.accounts.some(
+            (account) => account.account_id === accountId
+        );
+
+        if (!accountExists) {
+            return res.status(404).json({
+                error: 'Konto nicht gefunden.',
+            });
+        }
+
+        // Entferne das Konto bei Plaid
+        await client.accountsRemove({
+            access_token: accessToken,
+            account_ids: [accountId],
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error unlinking account:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 module.exports = router;

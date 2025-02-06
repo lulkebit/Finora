@@ -14,6 +14,8 @@ import { AccountGroups } from './banking/AccountGroups';
 import { GlassCard } from './common/GlassCard';
 import { TabNavigation } from './common/TabNavigation';
 import { BankingPage } from './banking/BankingPage';
+import { PlaidLink } from '../components/PlaidLink';
+import { AxiosError } from 'axios';
 
 type BankAccount = {
     id: string;
@@ -76,6 +78,7 @@ export default function Dashboard() {
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(
         null
     );
+    const [needsPlaidSetup, setNeedsPlaidSetup] = useState(false);
 
     const tabs = useMemo(
         () => [
@@ -123,9 +126,14 @@ export default function Dashboard() {
                 monthlyIncome,
                 monthlyExpenses,
             });
+            setNeedsPlaidSetup(false);
         } catch (err) {
-            setError('Fehler beim Laden der Daten');
-            console.error('Dashboard Fehler:', err);
+            if ((err as AxiosError)?.response?.status === 400) {
+                setNeedsPlaidSetup(true);
+            } else {
+                setError('Fehler beim Laden der Daten');
+                console.error('Dashboard Fehler:', err);
+            }
         } finally {
             setLoading(false);
         }
@@ -147,6 +155,23 @@ export default function Dashboard() {
     }, []);
 
     const renderOverview = useCallback(() => {
+        if (needsPlaidSetup) {
+            return (
+                <MemoizedGlassCard>
+                    <div className='space-y-6 text-center py-8'>
+                        <h2 className='text-xl font-semibold text-white'>
+                            Willkommen bei Finora!
+                        </h2>
+                        <p className='text-gray-300'>
+                            Um Ihre Finanzen zu verwalten, verbinden Sie bitte
+                            zuerst Ihr Bankkonto.
+                        </p>
+                        <PlaidLink onSuccess={fetchDashboardData} />
+                    </div>
+                </MemoizedGlassCard>
+            );
+        }
+
         if (!dashboardData) return null;
         return (
             <div className='space-y-8'>
@@ -189,12 +214,13 @@ export default function Dashboard() {
                         </div>
                         <MemoizedAccountGroups
                             accounts={dashboardData.accounts}
+                            onAccountsUpdate={fetchDashboardData}
                         />
                     </div>
                 </MemoizedGlassCard>
             </div>
         );
-    }, [dashboardData, formatCurrency]);
+    }, [dashboardData, formatCurrency, needsPlaidSetup]);
 
     const renderContracts = () => {
         return (
@@ -305,9 +331,9 @@ export default function Dashboard() {
                         transition={{ duration: 0.3 }}
                     >
                         {activeTab === 'overview' && renderOverview()}
-                        {activeTab === 'accounts' && dashboardData && (
+                        {activeTab === 'accounts' && (
                             <BankingPage
-                                accounts={dashboardData.accounts}
+                                accounts={dashboardData?.accounts || []}
                                 onAccountsUpdate={fetchDashboardData}
                             />
                         )}

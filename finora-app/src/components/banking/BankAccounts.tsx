@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiPlus } from 'react-icons/fi';
+import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import PlaidLink from '../PlaidLink';
 import axios from 'axios';
 
@@ -20,6 +20,7 @@ interface BankAccount {
 export const BankAccounts: React.FC = () => {
     const [accounts, setAccounts] = useState<BankAccount[]>([]);
     const [showPlaidLink, setShowPlaidLink] = useState(false);
+    const [isRemoving, setIsRemoving] = useState(false);
 
     const fetchAccounts = async () => {
         try {
@@ -44,17 +45,56 @@ export const BankAccounts: React.FC = () => {
         fetchAccounts();
     };
 
+    const handleRemoveAccount = async () => {
+        if (
+            !window.confirm(
+                'Möchten Sie wirklich alle verknüpften Bankkonten entfernen?'
+            )
+        ) {
+            return;
+        }
+
+        setIsRemoving(true);
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete('/api/plaid/unlink-account', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            setAccounts([]);
+        } catch (error) {
+            console.error('Fehler beim Entfernen der Bankkonten:', error);
+        } finally {
+            setIsRemoving(false);
+        }
+    };
+
     return (
         <div className='space-y-6'>
             <div className='flex justify-between items-center'>
                 <h2 className='text-xl font-semibold text-white'>Bankkonten</h2>
-                <button
-                    onClick={() => setShowPlaidLink(true)}
-                    className='flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors'
-                >
-                    <FiPlus className='mr-2' />
-                    Konto hinzufügen
-                </button>
+                <div className='flex gap-4'>
+                    {accounts.length > 0 && (
+                        <button
+                            onClick={handleRemoveAccount}
+                            disabled={isRemoving}
+                            className='flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50'
+                        >
+                            <FiTrash2 className='mr-2' />
+                            {isRemoving
+                                ? 'Wird entfernt...'
+                                : 'Konten entfernen'}
+                        </button>
+                    )}
+                    <button
+                        onClick={() => setShowPlaidLink(true)}
+                        className='flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors'
+                    >
+                        <FiPlus className='mr-2' />
+                        Konto hinzufügen
+                    </button>
+                </div>
             </div>
 
             {showPlaidLink && (
